@@ -8,7 +8,11 @@ app.use(cors());
 app.use(express.json());
 
 // ─── DB helper ────────────────────────────────────────────────────────────────
-const getSQL = () => neon(process.env.DATABASE_URL);
+// Use sql.query(text, values) for parameterised queries (neon v1+)
+const getSQL = () => {
+  const s = neon(process.env.DATABASE_URL);
+  return { query: (text, values) => s.query(text, values) };
+};
 
 // Allowed sort fields per table (prevent SQL injection)
 const SORT_FIELDS = {
@@ -61,13 +65,13 @@ function makeCRUD(router, table, writableFields) {
   // LIST / FILTER
   router.get(`/${table}`, async (req, res) => {
     try {
-      const sql = getSQL();
+      const { query } = getSQL();
       const { sort = '-created_at', limit = '100' } = req.query;
       const limitN = Math.min(parseInt(limit) || 100, 1000);
       const orderClause = parseSortClause(table, sort);
       const { where, values } = buildWhere(table, req.query);
       values.push(limitN);
-      const rows = await sql(
+      const rows = await query(
         `SELECT * FROM ${table} ${where} ${orderClause} LIMIT $${values.length}`,
         values,
       );
@@ -81,10 +85,10 @@ function makeCRUD(router, table, writableFields) {
   // GET ONE
   router.get(`/${table}/:id`, async (req, res) => {
     try {
-      const sql = getSQL();
-      const [row] = await sql(`SELECT * FROM ${table} WHERE id = $1`, [req.params.id]);
-      if (!row) return res.status(404).json({ error: 'Not found' });
-      res.json(row);
+      const { query } = getSQL();
+      const rows = await query(`SELECT * FROM ${table} WHERE id = $1`, [req.params.id]);
+      if (!rows[0]) return res.status(404).json({ error: 'Not found' });
+      res.json(rows[0]);
     } catch (err) {
       res.status(500).json({ error: err.message });
     }
@@ -93,18 +97,18 @@ function makeCRUD(router, table, writableFields) {
   // CREATE
   router.post(`/${table}`, async (req, res) => {
     try {
-      const sql = getSQL();
+      const { query } = getSQL();
       const data = req.body || {};
       const fields = writableFields.filter(f => data[f] !== undefined);
       if (fields.length === 0) return res.status(400).json({ error: 'No valid fields provided' });
       const cols = fields.join(', ');
       const placeholders = fields.map((_, i) => `$${i + 1}`).join(', ');
       const vals = fields.map(f => data[f]);
-      const [row] = await sql(
+      const rows = await query(
         `INSERT INTO ${table} (${cols}) VALUES (${placeholders}) RETURNING *`,
         vals,
       );
-      res.status(201).json(row);
+      res.status(201).json(rows[0]);
     } catch (err) {
       console.error(`POST /${table}`, err);
       res.status(500).json({ error: err.message });
@@ -114,19 +118,20 @@ function makeCRUD(router, table, writableFields) {
   // UPDATE
   router.put(`/${table}/:id`, async (req, res) => {
     try {
-      const sql = getSQL();
+      const { query } = getSQL();
       const data = req.body || {};
       const fields = writableFields.filter(f => data[f] !== undefined);
       if (fields.length === 0) return res.status(400).json({ error: 'No valid fields provided' });
       const sets = fields.map((f, i) => `${f} = $${i + 1}`).join(', ');
       const vals = [...fields.map(f => data[f]), req.params.id];
-      const updateCols = table !== 'media' && table !== 'standings' ? `, updated_at = NOW()` : '';
-      const [row] = await sql(
+      const hasUpdatedAt = !['media', 'standings', 'comments', 'media'].includes(table);
+      const updateCols = hasUpdatedAt ? `, updated_at = NOW()` : '';
+      const rows = await query(
         `UPDATE ${table} SET ${sets}${updateCols} WHERE id = $${vals.length} RETURNING *`,
         vals,
       );
-      if (!row) return res.status(404).json({ error: 'Not found' });
-      res.json(row);
+      if (!rows[0]) return res.status(404).json({ error: 'Not found' });
+      res.json(rows[0]);
     } catch (err) {
       res.status(500).json({ error: err.message });
     }
@@ -135,8 +140,8 @@ function makeCRUD(router, table, writableFields) {
   // DELETE
   router.delete(`/${table}/:id`, async (req, res) => {
     try {
-      const sql = getSQL();
-      await sql(`DELETE FROM ${table} WHERE id = $1`, [req.params.id]);
+      const { query } = getSQL();
+      await query(`DELETE FROM ${table} WHERE id = $1`, [req.params.id]);
       res.json({ deleted: true });
     } catch (err) {
       res.status(500).json({ error: err.message });
