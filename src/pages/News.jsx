@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { base44 } from '@/api/base44Client';
+import { ceramicaCleopatra } from '@/api/ceramicaCleopatraClient';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
-import { createPageUrl } from '@/utils';
+import { createPageUrl, ensureArray } from '@/utils';
 import { motion } from 'framer-motion';
 import { format } from 'date-fns';
 import { Clock, Eye, Search, Filter, ChevronRight, Tag } from 'lucide-react';
@@ -33,7 +33,8 @@ export default function News() {
 
   const { data: news = [], isLoading } = useQuery({
     queryKey: ['news'],
-    queryFn: () => base44.entities.News.filter({ status: 'published' }, '-published_at', 50)
+    queryFn: () => ceramicaCleopatra.entities.News.filter({ status: 'published' }, '-published_at', 50),
+    select: ensureArray,
   });
 
   const filteredNews = news.filter(article => {

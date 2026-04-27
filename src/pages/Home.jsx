@@ -1,6 +1,7 @@
 import React from 'react';
-import { base44 } from '@/api/base44Client';
+import { ceramicaCleopatra } from '@/api/ceramicaCleopatraClient';
 import { useQuery } from '@tanstack/react-query';
+import { ensureArray } from '@/utils';
 
 import HeroSection from '@/components/home/HeroSection';
 import NewsTicker from '@/components/home/NewsTicker';
@@ -12,17 +13,20 @@ import FeaturedVideo from '@/components/home/FeaturedVideo';
 export default function Home() {
   const { data: matches = [] } = useQuery({
     queryKey: ['matches'],
-    queryFn: () => base44.entities.Match.list('-date', 20)
+    queryFn: () => ceramicaCleopatra.entities.Match.list('-date', 20),
+    select: ensureArray,
   });
 
   const { data: news = [] } = useQuery({
     queryKey: ['news'],
-    queryFn: () => base44.entities.News.filter({ status: 'published' }, '-published_at', 10)
+    queryFn: () => ceramicaCleopatra.entities.News.filter({ status: 'published' }, '-published_at', 10),
+    select: ensureArray,
   });
 
   const { data: videos = [] } = useQuery({
     queryKey: ['videos'],
-    queryFn: () => base44.entities.Media.filter({ type: 'video' }, '-created_date', 5)
+    queryFn: () => ceramicaCleopatra.entities.Media.filter({ type: 'video' }, '-created_date', 5),
+    select: ensureArray,
   });
 
   // Get Ceramica matches

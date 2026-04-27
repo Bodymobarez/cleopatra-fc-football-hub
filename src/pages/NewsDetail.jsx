@@ -1,8 +1,8 @@
 import React from 'react';
-import { base44 } from '@/api/base44Client';
+import { ceramicaCleopatra } from '@/api/ceramicaCleopatraClient';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
-import { createPageUrl } from '@/utils';
+import { createPageUrl, ensureArray } from '@/utils';
 import { format } from 'date-fns';
 import { motion } from 'framer-motion';
 import ReactMarkdown from 'react-markdown';
@@ -33,20 +33,22 @@ export default function NewsDetail() {
   const { data: article, isLoading } = useQuery({
     queryKey: ['news', articleId],
     queryFn: async () => {
-      const articles = await base44.entities.News.filter({ id: articleId });
-      return articles[0];
+      const articles = await ceramicaCleopatra.entities.News.filter({ id: articleId });
+      const list = ensureArray(articles);
+      return list[0];
     },
     enabled: !!articleId
   });
 
   const { data: relatedNews = [] } = useQuery({
     queryKey: ['relatedNews', article?.category],
-    queryFn: () => base44.entities.News.filter(
+    queryFn: () => ceramicaCleopatra.entities.News.filter(
       { status: 'published', category: article?.category },
       '-published_at',
       4
     ),
-    enabled: !!article?.category
+    enabled: !!article?.category,
+    select: ensureArray,
   });
 
   const related = relatedNews.filter(n => n.id !== articleId).slice(0, 3);

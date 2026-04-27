@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { base44 } from '@/api/base44Client';
+import { ceramicaCleopatra } from '@/api/ceramicaCleopatraClient';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { ensureArray } from '@/utils';
 import { motion } from 'framer-motion';
 import { useLanguage } from '@/components/LanguageContext';
 import { 
@@ -20,12 +21,14 @@ export default function FanZone() {
 
   const { data: polls = [], isLoading: pollsLoading } = useQuery({
     queryKey: ['polls'],
-    queryFn: () => base44.entities.Poll.filter({ is_active: true }, '-created_date')
+    queryFn: () => ceramicaCleopatra.entities.Poll.filter({ is_active: true }, '-created_date'),
+    select: ensureArray,
   });
 
   const { data: comments = [], isLoading: commentsLoading } = useQuery({
     queryKey: ['comments'],
-    queryFn: () => base44.entities.Comment.filter({ status: 'approved' }, '-created_date', 20)
+    queryFn: () => ceramicaCleopatra.entities.Comment.filter({ status: 'approved' }, '-created_date', 20),
+    select: ensureArray,
   });
 
   const voteMutation = useMutation({
@@ -34,7 +37,7 @@ export default function FanZone() {
       const updatedOptions = poll.options.map((opt, idx) => 
         idx === optionIndex ? { ...opt, votes: opt.votes + 1 } : opt
       );
-      return base44.entities.Poll.update(pollId, {
+      return ceramicaCleopatra.entities.Poll.update(pollId, {
         options: updatedOptions,
         total_votes: poll.total_votes + 1
       });
@@ -46,7 +49,7 @@ export default function FanZone() {
   });
 
   const commentMutation = useMutation({
-    mutationFn: (commentData) => base44.entities.Comment.create(commentData),
+    mutationFn: (commentData) => ceramicaCleopatra.entities.Comment.create(commentData),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['comments'] });
       setCommentText('');

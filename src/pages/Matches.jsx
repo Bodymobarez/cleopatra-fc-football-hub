@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { base44 } from '@/api/base44Client';
+import { ceramicaCleopatra } from '@/api/ceramicaCleopatraClient';
 import { useQuery } from '@tanstack/react-query';
+import { ensureArray } from '@/utils';
 import { motion } from 'framer-motion';
 import { Calendar, Filter, ChevronLeft, ChevronRight } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, addMonths, subMonths, isSameMonth } from 'date-fns';
@@ -14,7 +15,8 @@ export default function Matches() {
 
   const { data: matches = [], isLoading } = useQuery({
     queryKey: ['matches'],
-    queryFn: () => base44.entities.Match.list('-date', 100)
+    queryFn: () => ceramicaCleopatra.entities.Match.list('-date', 100),
+    select: ensureArray,
   });
 
   const filteredMatches = matches.filter(match => {

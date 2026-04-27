@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { base44 } from '@/api/base44Client';
+import { ceramicaCleopatra } from '@/api/ceramicaCleopatraClient';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
-import { createPageUrl } from '@/utils';
+import { createPageUrl, ensureArray } from '@/utils';
 import { motion } from 'framer-motion';
 import { format } from 'date-fns';
 import { Clock, Eye, Search, Globe, Trophy } from 'lucide-react';
@@ -39,7 +39,8 @@ export default function GlobalNews() {
 
   const { data: news = [], isLoading } = useQuery({
     queryKey: ['globalNews'],
-    queryFn: () => base44.entities.News.filter({ status: 'published' }, '-published_at', 100)
+    queryFn: () => ceramicaCleopatra.entities.News.filter({ status: 'published' }, '-published_at', 100),
+    select: ensureArray,
   });
 
   const globalNews = news.filter(n => !n.is_club_news);

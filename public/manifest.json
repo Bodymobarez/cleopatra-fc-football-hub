@@ -1,0 +1,8 @@
+{
+  "name": "CERAMICA CLEOPATRA FC",
+  "short_name": "CERAMICA CLEOPATRA",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0a1628",
+  "theme_color": "#0a1628"
+}

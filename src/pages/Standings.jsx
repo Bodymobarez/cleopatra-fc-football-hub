@@ -1,6 +1,7 @@
 import React from 'react';
-import { base44 } from '@/api/base44Client';
+import { ceramicaCleopatra } from '@/api/ceramicaCleopatraClient';
 import { useQuery } from '@tanstack/react-query';
+import { ensureArray } from '@/utils';
 import { motion } from 'framer-motion';
 import { Trophy, TrendingUp, TrendingDown, Minus, Crown } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -8,7 +9,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 export default function Standings() {
   const { data: standings = [], isLoading } = useQuery({
     queryKey: ['standings'],
-    queryFn: () => base44.entities.Standing.list('-created_date', 10)
+    queryFn: () => ceramicaCleopatra.entities.Standing.list('-created_date', 10),
+    select: ensureArray,
   });
 
   const currentStanding = standings[0];

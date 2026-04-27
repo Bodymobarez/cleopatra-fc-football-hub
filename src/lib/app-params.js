@@ -10,7 +10,13 @@ const getAppParamValue = (paramName, { defaultValue = undefined, removeFromUrl =
 	if (isNode) {
 		return defaultValue;
 	}
-	const storageKey = `base44_${toSnakeCase(paramName)}`;
+	// SDK auth reads/writes `base44_access_token`; keep that key for access_token only.
+	const storageKey =
+		paramName === 'access_token'
+			? 'base44_access_token'
+			: `ceramica_cleopatra_${toSnakeCase(paramName)}`;
+	const legacyStorageKey =
+		paramName === 'access_token' ? null : `base44_${toSnakeCase(paramName)}`;
 	const urlParams = new URLSearchParams(window.location.search);
 	const searchParam = urlParams.get(paramName);
 	if (removeFromUrl) {
@@ -27,7 +33,9 @@ const getAppParamValue = (paramName, { defaultValue = undefined, removeFromUrl =
 		storage.setItem(storageKey, defaultValue);
 		return defaultValue;
 	}
-	const storedValue = storage.getItem(storageKey);
+	const storedValue =
+		storage.getItem(storageKey) ||
+		(legacyStorageKey ? storage.getItem(legacyStorageKey) : null);
 	if (storedValue) {
 		return storedValue;
 	}
@@ -39,12 +47,15 @@ const getAppParams = () => {
 		storage.removeItem('base44_access_token');
 		storage.removeItem('token');
 	}
+	const envAppId = import.meta.env.VITE_CERAMICA_CLEOPATRA_APP_ID || import.meta.env.VITE_BASE44_APP_ID;
+	const envFns = import.meta.env.VITE_CERAMICA_CLEOPATRA_FUNCTIONS_VERSION || import.meta.env.VITE_BASE44_FUNCTIONS_VERSION;
+	const envBase = import.meta.env.VITE_CERAMICA_CLEOPATRA_APP_BASE_URL || import.meta.env.VITE_BASE44_APP_BASE_URL;
 	return {
-		appId: getAppParamValue("app_id", { defaultValue: import.meta.env.VITE_BASE44_APP_ID }),
+		appId: getAppParamValue("app_id", { defaultValue: envAppId }),
 		token: getAppParamValue("access_token", { removeFromUrl: true }),
 		fromUrl: getAppParamValue("from_url", { defaultValue: window.location.href }),
-		functionsVersion: getAppParamValue("functions_version", { defaultValue: import.meta.env.VITE_BASE44_FUNCTIONS_VERSION }),
-		appBaseUrl: getAppParamValue("app_base_url", { defaultValue: import.meta.env.VITE_BASE44_APP_BASE_URL }),
+		functionsVersion: getAppParamValue("functions_version", { defaultValue: envFns }),
+		appBaseUrl: getAppParamValue("app_base_url", { defaultValue: envBase }),
 	}
 }
 

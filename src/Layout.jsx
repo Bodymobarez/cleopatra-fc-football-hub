@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
-import { base44 } from '@/api/base44Client';
+import { ceramicaCleopatra } from '@/api/ceramicaCleopatraClient';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Menu, X, Home, Users, Calendar, Newspaper, Trophy, 
@@ -54,9 +54,9 @@ export default function Layout({ children, currentPageName }) {
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        const isAuth = await base44.auth.isAuthenticated();
+        const isAuth = await ceramicaCleopatra.auth.isAuthenticated();
         if (isAuth) {
-          const userData = await base44.auth.me();
+          const userData = await ceramicaCleopatra.auth.me();
           setUser(userData);
         }
       } catch (e) {}
@@ -162,7 +162,7 @@ export default function Layout({ children, currentPageName }) {
                       </DropdownMenuItem>
                     )}
                     <DropdownMenuItem 
-                      onClick={() => base44.auth.logout()}
+                      onClick={() => ceramicaCleopatra.auth.logout()}
                       className="text-red-400 hover:text-red-300 hover:bg-white/10 cursor-pointer"
                     >
                       <LogOut className="w-4 h-4 mr-2" />
@@ -172,7 +172,7 @@ export default function Layout({ children, currentPageName }) {
                 </DropdownMenu>
               ) : (
                 <button 
-                  onClick={() => base44.auth.redirectToLogin()}
+                  onClick={() => ceramicaCleopatra.auth.redirectToLogin()}
                   className="hidden sm:flex items-center gap-2 px-4 py-2 bg-[#FFB81C] text-[#1B2852] font-bold rounded-lg hover:bg-[#f5a815] transition-colors"
                 >
                   <User className="w-4 h-4" />
@@ -240,7 +240,7 @@ export default function Layout({ children, currentPageName }) {
 
               {!user && (
                 <button 
-                  onClick={() => base44.auth.redirectToLogin()}
+                  onClick={() => ceramicaCleopatra.auth.redirectToLogin()}
                   className="w-full mt-6 flex items-center justify-center gap-2 px-4 py-3 bg-[#FFB81C] text-[#1B2852] font-bold rounded-lg"
                 >
                   <User className="w-5 h-5" />

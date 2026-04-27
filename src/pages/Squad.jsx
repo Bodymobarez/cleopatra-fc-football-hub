@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { base44 } from '@/api/base44Client';
+import { ceramicaCleopatra } from '@/api/ceramicaCleopatraClient';
 import { useQuery } from '@tanstack/react-query';
+import { ensureArray } from '@/utils';
 import { motion } from 'framer-motion';
 import { Users, Shield, Target, Crosshair } from 'lucide-react';
 import PlayerCard from '@/components/shared/PlayerCard';
@@ -18,7 +19,8 @@ export default function Squad() {
 
   const { data: players = [], isLoading } = useQuery({
     queryKey: ['players'],
-    queryFn: () => base44.entities.Player.list('number', 50)
+    queryFn: () => ceramicaCleopatra.entities.Player.list('number', 50),
+    select: ensureArray,
   });
 
   const filteredPlayers = activePosition === 'all' 

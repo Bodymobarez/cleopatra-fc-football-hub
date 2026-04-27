@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { base44 } from '@/api/base44Client';
+import { ceramicaCleopatra } from '@/api/ceramicaCleopatraClient';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import { 
@@ -24,7 +24,7 @@ export default function Admin() {
 
       switch (type) {
         case 'egyptian_league_news':
-          result = await base44.integrations.Core.InvokeLLM({
+          result = await ceramicaCleopatra.integrations.Core.InvokeLLM({
             prompt: `Search for the latest Egyptian Premier League news, especially about Ceramica Cleopatra FC. 
             Get at least 10 recent news articles with titles, summaries, dates, and categories.
             Include transfer news, match reports, and player updates.
@@ -54,7 +54,7 @@ export default function Admin() {
 
           // Create news articles
           for (const article of result.articles) {
-            await base44.entities.News.create({
+            await ceramicaCleopatra.entities.News.create({
               ...article,
               status: 'published',
               published_at: new Date().toISOString(),
@@ -64,7 +64,7 @@ export default function Admin() {
           break;
 
         case 'global_football_news':
-          result = await base44.integrations.Core.InvokeLLM({
+          result = await ceramicaCleopatra.integrations.Core.InvokeLLM({
             prompt: `Get the latest global football news from Premier League, La Liga, Serie A, Bundesliga, and Champions League.
             Get 15 recent articles with titles, summaries, league/competition info.
             Include transfer rumors, match reports, and tactical analysis.`,
@@ -91,7 +91,7 @@ export default function Admin() {
           });
 
           for (const article of result.articles) {
-            await base44.entities.News.create({
+            await ceramicaCleopatra.entities.News.create({
               ...article,
               status: 'published',
               published_at: new Date().toISOString(),
@@ -102,7 +102,7 @@ export default function Admin() {
           break;
 
         case 'ceramica_squad':
-          result = await base44.integrations.Core.InvokeLLM({
+          result = await ceramicaCleopatra.integrations.Core.InvokeLLM({
             prompt: `Get information about Ceramica Cleopatra FC current squad in Egyptian Premier League.
             Include player names, positions, jersey numbers, nationalities, and statistics if available.
             Get at least 25 players covering all positions (goalkeepers, defenders, midfielders, forwards).`,
@@ -136,7 +136,7 @@ export default function Admin() {
           });
 
           for (const player of result.players) {
-            await base44.entities.Player.create({
+            await ceramicaCleopatra.entities.Player.create({
               ...player,
               photo_url: `https://ui-avatars.com/api/?name=${encodeURIComponent(player.name)}&size=400&background=1B2852&color=FFB81C`,
               status: 'available',
@@ -146,7 +146,7 @@ export default function Admin() {
           break;
 
         case 'egyptian_league_matches':
-          result = await base44.integrations.Core.InvokeLLM({
+          result = await ceramicaCleopatra.integrations.Core.InvokeLLM({
             prompt: `Get upcoming and recent Egyptian Premier League matches, especially featuring Ceramica Cleopatra FC.
             Include match dates, teams, venues, and scores for finished matches.
             Get at least 20 matches (past and upcoming).`,
@@ -175,7 +175,7 @@ export default function Admin() {
           });
 
           for (const match of result.matches) {
-            await base44.entities.Match.create({
+            await ceramicaCleopatra.entities.Match.create({
               ...match,
               competition: 'Egyptian Premier League',
               match_type: 'league'
@@ -184,7 +184,7 @@ export default function Admin() {
           break;
 
         case 'transfer_news':
-          result = await base44.integrations.Core.InvokeLLM({
+          result = await ceramicaCleopatra.integrations.Core.InvokeLLM({
             prompt: `Get the latest Egyptian football transfer news and rumors, including Ceramica Cleopatra FC transfers.
             Include player names, clubs involved, transfer fees if available, and transfer status.
             Get 10 recent transfer news articles.`,
@@ -209,7 +209,7 @@ export default function Admin() {
           });
 
           for (const article of result.articles) {
-            await base44.entities.News.create({
+            await ceramicaCleopatra.entities.News.create({
               ...article,
               category: 'transfers',
               status: 'published',
@@ -221,7 +221,7 @@ export default function Admin() {
           break;
 
         case 'league_standings':
-          result = await base44.integrations.Core.InvokeLLM({
+          result = await ceramicaCleopatra.integrations.Core.InvokeLLM({
             prompt: `Get the current Egyptian Premier League standings table.
             Include team names, positions, matches played, wins, draws, losses, goals for, goals against, and points.
             Get the full table for all teams.`,
@@ -251,7 +251,7 @@ export default function Admin() {
             }
           });
 
-          await base44.entities.Standing.create({
+          await ceramicaCleopatra.entities.Standing.create({
             competition: 'Egyptian Premier League',
             season: '2024/2025',
             teams: result.teams
