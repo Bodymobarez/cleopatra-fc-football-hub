@@ -1539,7 +1539,7 @@ router.get('/news-feeds', async (req, res) => {
           is_featured:   i === 0,
           is_breaking:   false,
           status:        'published',
-          featured_image: item.thumbnail || 'https://images.unsplash.com/photo-1517466787929-bc90951d0974?w=800&q=80',
+          featured_image: item.thumbnail ? item.thumbnail.replace('/standard/240/', '/standard/1600/').replace('/ace/standard/240/', '/ace/standard/1600/') : 'https://images.unsplash.com/photo-1517466787929-bc90951d0974?w=1200&q=85',
           published_at:  item.pubDate ? new Date(item.pubDate).toISOString() : new Date().toISOString(),
           tags:          ['global', 'bbc', 'football'],
           views:         0,
