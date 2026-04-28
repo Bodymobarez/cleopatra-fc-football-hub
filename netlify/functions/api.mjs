@@ -1098,6 +1098,80 @@ makeCRUD(router, 'polls',    ['question','options','total_votes','is_active','cr
 makeCRUD(router, 'comments', ['content','author_name','status','news_id','created_date'], true);
 makeCRUD(router, 'standings',['competition','season','teams','created_date'], true);
 
+// ── Relegation Group Standings (computed from DB matches) ────────────────────
+router.get('/relegation-standings', async (_req, res) => {
+  try {
+    const { query } = getSQL();
+
+    // All finished relegation group matches stored in DB
+    const rawRes = await query(
+      `SELECT home_team, away_team, home_score, away_score, home_team_logo, away_team_logo, date
+       FROM matches
+       WHERE status = 'finished'
+         AND (LOWER(competition) LIKE '%relegation%')
+       ORDER BY date ASC`,
+      []
+    );
+    const rows = Array.isArray(rawRes) ? rawRes : (rawRes?.rows || []);
+
+    // Also include live/in-progress
+    const liveRes = await query(
+      `SELECT home_team, away_team, home_score, away_score, home_team_logo, away_team_logo, date
+       FROM matches
+       WHERE status IN ('live','halftime')
+         AND (LOWER(competition) LIKE '%relegation%')`,
+      []
+    );
+    const liveRows = Array.isArray(liveRes) ? liveRes : (liveRes?.rows || []);
+    const allRows = [...rows, ...liveRows];
+
+    if (allRows.length === 0) {
+      return res.json({ teams: [], computed: true, fromMatches: 0 });
+    }
+
+    // Build standings map
+    const teams = {};
+    const ensure = (name, logo) => {
+      if (!teams[name]) teams[name] = { team: name, team_logo: logo || null, played: 0, won: 0, drawn: 0, lost: 0, goals_for: 0, goals_against: 0, goal_difference: 0, points: 0, form: '' };
+      if (logo && !teams[name].team_logo) teams[name].team_logo = logo;
+    };
+
+    for (const m of allRows) {
+      const hs = parseInt(m.home_score || 0);
+      const as = parseInt(m.away_score || 0);
+      ensure(m.home_team, m.home_team_logo);
+      ensure(m.away_team, m.away_team_logo);
+
+      const h = teams[m.home_team];
+      const a = teams[m.away_team];
+      h.played++; a.played++;
+      h.goals_for += hs;  h.goals_against += as;
+      a.goals_for += as;  a.goals_against += hs;
+
+      if (hs > as) {
+        h.won++; h.points += 3; h.form += 'W';
+        a.lost++;             a.form += 'L';
+      } else if (hs < as) {
+        a.won++; a.points += 3; a.form += 'W';
+        h.lost++;             h.form += 'L';
+      } else {
+        h.drawn++; h.points += 1; h.form += 'D';
+        a.drawn++; a.points += 1; a.form += 'D';
+      }
+    }
+
+    const sorted = Object.values(teams)
+      .map(t => ({ ...t, goal_difference: t.goals_for - t.goals_against }))
+      .sort((a, b) => b.points - a.points || b.goal_difference - a.goal_difference || b.goals_for - a.goals_for)
+      .map((t, i) => ({ ...t, position: i + 1, form: t.form.slice(-5) }));
+
+    res.json({ teams: sorted, computed: true, fromMatches: allRows.length, updatedAt: new Date().toISOString() });
+  } catch (err) {
+    console.error('relegation-standings', err);
+    res.status(500).json({ error: err.message, teams: [] });
+  }
+});
+
 // ── Match event-id lookup by team names + approximate date ───────────────────
 router.get('/match-lookup', async (req, res) => {
   try {

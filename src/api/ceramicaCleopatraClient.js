@@ -95,7 +95,8 @@ export const ceramicaCleopatra = {
   liveScores:       ()          => apiFetch('GET', '/live-scores'),
   ceramicaFixtures: ()          => apiFetch('GET', '/ceramica-fixtures'),
   matchDetails:     (eventId)   => apiFetch('GET', `/match-details/${eventId}`),
-  matchLookup:      (home, away, date) => apiFetch('GET', `/match-lookup?home=${encodeURIComponent(home)}&away=${encodeURIComponent(away)}&date=${encodeURIComponent(date || '')}`),
+  matchLookup:         (home, away, date) => apiFetch('GET', `/match-lookup?home=${encodeURIComponent(home)}&away=${encodeURIComponent(away)}&date=${encodeURIComponent(date || '')}`),
+  relegationStandings: () => apiFetch('GET', '/relegation-standings'),
 
   settings: {
     get:  ()     => apiFetch('GET', '/settings'),
