@@ -578,6 +578,9 @@ syncRouter.post('/squad', async (_req, res) => {
         market_value:     detail.marketValue || null,
         contract_expires: detail.contractExpires || null,
         flashscore_id:    p.id,
+        flashscore_slug:  p.slug,   // store the real slug for future stat updates
+        stats_season:     seasonEntry?.season || SEASON,
+        stats_updated_at: new Date().toISOString(),
       };
 
       await query(
@@ -615,7 +618,16 @@ syncRouter.post('/player-stats', async (_req, res) => {
     const { query } = getSQL();
     const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
-    // Fetch all players that have a flashscore_id stored in stats JSONB
+    // 1. Build a fresh id→slug map from the Flashscore team endpoint
+    const teamData = await flashscore(`/api/flashscore/team/${CERAMICA_SLUG}/${CERAMICA_ID}`).catch(() => ({}));
+    const slugMap = {};
+    for (const group of (teamData.squad || [])) {
+      for (const p of (group.players || [])) {
+        if (p.id && p.slug) slugMap[p.id] = p.slug;
+      }
+    }
+
+    // 2. Fetch all DB players with a flashscore_id
     const { rows } = await query(
       `SELECT id, name, stats FROM players WHERE stats->>'flashscore_id' IS NOT NULL`,
       []
@@ -631,13 +643,14 @@ syncRouter.post('/player-stats', async (_req, res) => {
       const fsId = existingStats.flashscore_id;
       if (!fsId) continue;
 
+      // Use the real slug from slugMap, then stored slug, then generated slug
+      const slug = slugMap[fsId]
+        || existingStats.flashscore_slug
+        || row.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+
       try {
-        // Try to find slug from existing stats or generate from name
-        const slug = existingStats.flashscore_slug
-          || row.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
         const detail = await flashscore(`/api/flashscore/player/${slug}/${fsId}`);
 
-        // Find current season entry
         const seasonEntry = (detail.careers?.league || []).find(c => c.season === SEASON && c.teamId === CERAMICA_ID)
           || (detail.careers?.league || []).find(c => c.teamId === CERAMICA_ID)
           || (detail.careers?.league || [])[0]
@@ -646,19 +659,20 @@ syncRouter.post('/player-stats', async (_req, res) => {
 
         const newStats = {
           ...existingStats,
-          appearances:     sv('Matches Played'),
-          goals:           sv('Goals'),
-          assists:         sv('Assists'),
-          yellow_cards:    sv('Yellow Cards'),
-          red_cards:       sv('Red Cards'),
-          rating:          sv('Rating') || null,
-          save_percentage: sv('Save Percentage') || null,
-          clean_sheets:    sv('Shutouts') || null,
-          minutes_played:  sv('Minutes Played') || null,
-          dob:             detail.dob || existingStats.dob || null,
-          market_value:    detail.marketValue || existingStats.market_value || null,
+          flashscore_slug:  slug,
+          appearances:      sv('Matches Played'),
+          goals:            sv('Goals'),
+          assists:          sv('Assists'),
+          yellow_cards:     sv('Yellow Cards'),
+          red_cards:        sv('Red Cards'),
+          rating:           sv('Rating') || null,
+          save_percentage:  sv('Save Percentage') || null,
+          clean_sheets:     sv('Shutouts') || null,
+          minutes_played:   sv('Minutes Played') || null,
+          dob:              detail.dob || existingStats.dob || null,
+          market_value:     detail.marketValue || existingStats.market_value || null,
           contract_expires: detail.contractExpires || existingStats.contract_expires || null,
-          stats_season:    seasonEntry?.season || SEASON,
+          stats_season:     seasonEntry?.season || SEASON,
           stats_updated_at: new Date().toISOString(),
         };
 
