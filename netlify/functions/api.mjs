@@ -8,9 +8,10 @@ app.use(cors());
 app.use(express.json());
 
 // ─── Constants ────────────────────────────────────────────────────────────────
-const LEAGUE_ID  = 233;   // Egyptian Premier League
-const TEAM_ID    = 14651; // Ceramica Cleopatra FC
-const SEASON     = 2024;  // 2024-25 season
+const LEAGUE_ID      = 233;   // Egyptian Premier League
+const TEAM_ID        = 14651; // Ceramica Cleopatra FC
+const SEASON         = 2025;  // 2025-26 season (current)
+const SEASON_FALLBACK = 2024; // fallback if 2025 not available on plan
 
 // ─── DB helper ────────────────────────────────────────────────────────────────
 const getSQL = () => {
@@ -27,9 +28,28 @@ async function apiFootball(path) {
   if (!res.ok) throw new Error(`API-Football ${res.status}: ${path}`);
   const data = await res.json();
   if (data.errors && Object.keys(data.errors).length > 0) {
-    throw new Error(JSON.stringify(data.errors));
+    const errMsg = JSON.stringify(data.errors);
+    // If season not available on free plan, signal for fallback
+    if (errMsg.includes('Free plans do not have access to this season')) {
+      const err = new Error(errMsg);
+      err.seasonFallback = true;
+      throw err;
+    }
+    throw new Error(errMsg);
   }
   return data.response;
+}
+
+// Try season, fall back automatically to SEASON_FALLBACK if plan restricts
+async function apiFootballWithFallback(pathTemplate) {
+  try {
+    return { data: await apiFootball(pathTemplate(SEASON)), season: SEASON };
+  } catch (err) {
+    if (err.seasonFallback) {
+      return { data: await apiFootball(pathTemplate(SEASON_FALLBACK)), season: SEASON_FALLBACK };
+    }
+    throw err;
+  }
 }
 
 // ─── SQL helpers ──────────────────────────────────────────────────────────────
@@ -171,12 +191,13 @@ const syncRouter = express.Router();
 syncRouter.post('/standings', async (_req, res) => {
   try {
     const { query } = getSQL();
-    const response = await apiFootball(`/standings?league=${LEAGUE_ID}&season=${SEASON}`);
-    const league   = response[0]?.league;
+    const { data: response, season: usedSeason } = await apiFootballWithFallback(
+      s => `/standings?league=${LEAGUE_ID}&season=${s}`
+    );
+    const league = response[0]?.league;
     if (!league) return res.status(404).json({ error: 'No standings data' });
 
-    // API returns multiple groups; find the overall/combined one (most teams)
-    const groups   = league.standings || [];
+    const groups = league.standings || [];
     let best = groups[0] || [];
     for (const g of groups) if (g.length > best.length) best = g;
 
@@ -201,10 +222,20 @@ syncRouter.post('/standings', async (_req, res) => {
     await query(
       `INSERT INTO standings (competition, season, teams, created_date)
        VALUES ($1, $2, $3, $4)`,
-      [`Egyptian Premier League`, `${SEASON}/${SEASON + 1}`, JSON.stringify(teams), new Date().toISOString()],
+      [
+        'Egyptian Premier League',
+        `${usedSeason}/${usedSeason + 1}`,
+        JSON.stringify(teams),
+        new Date().toISOString(),
+      ],
     );
 
-    res.json({ synced: true, teams: teams.length, updatedAt: new Date().toISOString() });
+    res.json({
+      synced: true, teams: teams.length,
+      season: `${usedSeason}/${usedSeason + 1}`,
+      note: usedSeason < SEASON ? `Season ${SEASON} not available on free plan – used ${usedSeason}` : undefined,
+      updatedAt: new Date().toISOString(),
+    });
   } catch (err) {
     console.error('sync/standings', err);
     res.status(500).json({ error: err.message });
@@ -218,11 +249,11 @@ syncRouter.post('/squad', async (_req, res) => {
     const response = await apiFootball(`/players/squads?team=${TEAM_ID}`);
     const players  = response[0]?.players || [];
 
-    // Get stats for each player (season stats)
+    // Get stats for each player (with season fallback)
     let statsMap = {};
     try {
-      const statsResp = await apiFootball(
-        `/players?team=${TEAM_ID}&league=${LEAGUE_ID}&season=${SEASON}&page=1`,
+      const { data: statsResp } = await apiFootballWithFallback(
+        s => `/players?team=${TEAM_ID}&league=${LEAGUE_ID}&season=${s}&page=1`,
       );
       for (const item of statsResp) {
         if (item.player?.id) statsMap[item.player.id] = item.statistics?.[0] || {};
@@ -279,17 +310,18 @@ syncRouter.post('/matches', async (_req, res) => {
   try {
     const { query } = getSQL();
 
-    // Fetch all Ceramica season fixtures
-    const ceramicaFixtures = await apiFootball(
-      `/fixtures?team=${TEAM_ID}&league=${LEAGUE_ID}&season=${SEASON}`,
+    // Fetch all Ceramica season fixtures (with fallback)
+    const { data: ceramicaFixtures, season: usedSeason } = await apiFootballWithFallback(
+      s => `/fixtures?team=${TEAM_ID}&league=${LEAGUE_ID}&season=${s}`,
     );
 
-    // Fetch recent EPL matches (round-based, no "last" param which needs paid plan)
+    // Fetch recent EPL round matches
     let allLeagueRecent = [];
     try {
-      allLeagueRecent = await apiFootball(
-        `/fixtures?league=${LEAGUE_ID}&season=${SEASON}&round=Regular Season - 17`,
+      const { data } = await apiFootballWithFallback(
+        s => `/fixtures?league=${LEAGUE_ID}&season=${s}&round=Regular Season - 17`,
       );
+      allLeagueRecent = data;
     } catch { /* optional */ }
 
     const ceramicaIds = new Set(ceramicaFixtures.map(f => f.fixture.id));
@@ -344,7 +376,11 @@ syncRouter.post('/matches', async (_req, res) => {
       count++;
     }
 
-    res.json({ synced: true, matches: count, updatedAt: new Date().toISOString() });
+    res.json({
+      synced: true, matches: count,
+      season: `${usedSeason}/${usedSeason + 1}`,
+      updatedAt: new Date().toISOString(),
+    });
   } catch (err) {
     console.error('sync/matches', err);
     res.status(500).json({ error: err.message });
@@ -355,8 +391,8 @@ syncRouter.post('/matches', async (_req, res) => {
 syncRouter.post('/topscorers', async (_req, res) => {
   try {
     const { query } = getSQL();
-    const response = await apiFootball(
-      `/players/topscorers?league=${LEAGUE_ID}&season=${SEASON}`,
+    const { data: response, season: usedSeason } = await apiFootballWithFallback(
+      s => `/players/topscorers?league=${LEAGUE_ID}&season=${s}`,
     );
 
     const top10 = response.slice(0, 10);
@@ -367,7 +403,7 @@ syncRouter.post('/topscorers', async (_req, res) => {
     }).join('\n');
 
     const article = {
-      title:          `Egyptian Premier League Top Scorers – ${SEASON}/${SEASON + 1} Season`,
+      title:          `Egyptian Premier League Top Scorers – ${usedSeason}/${usedSeason + 1} Season`,
       excerpt:        `The Golden Boot race: ${top10[0]?.player?.name} leads with ${top10[0]?.statistics?.[0]?.goals?.total} goals.`,
       content:        `EGYPTIAN PREMIER LEAGUE – TOP SCORERS\n\n${rows}\n\nData updated live from API-Football.`,
       category:       'statistics',
