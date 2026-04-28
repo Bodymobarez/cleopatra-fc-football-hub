@@ -1098,6 +1098,53 @@ makeCRUD(router, 'polls',    ['question','options','total_votes','is_active','cr
 makeCRUD(router, 'comments', ['content','author_name','status','news_id','created_date'], true);
 makeCRUD(router, 'standings',['competition','season','teams','created_date'], true);
 
+// ── Match event-id lookup by team names + approximate date ───────────────────
+router.get('/match-lookup', async (req, res) => {
+  try {
+    const { home, away, date } = req.query;
+    if (!home || !away) return res.status(400).json({ error: 'home and away are required' });
+
+    const norm = (s) => String(s || '').toLowerCase().replace(/[^a-z]/g, '');
+    const homeN = norm(home);
+    const awayN  = norm(away);
+    const targetMs = date ? new Date(date).getTime() : null;
+
+    // Fetch results from all groups (Championship + Relegation)
+    const [r1, r2] = await Promise.all([
+      fetchAllPages(`${EPL_PATH}/${SEASON}/results`).catch(() => []),
+      flashscore(`${EPL_PATH}/${SEASON}/fixtures`).catch(() => []),
+    ]);
+    const all = [...(Array.isArray(r1) ? r1 : []), ...(Array.isArray(r2) ? r2 : [])];
+
+    let best = null;
+    let bestScore = 0;
+    for (const m of all) {
+      if (!m.eventId) continue;
+      const mHomeN = norm(m.homeName);
+      const mAwayN  = norm(m.awayName);
+      // Both teams must roughly match
+      const homeMatch = mHomeN.includes(homeN) || homeN.includes(mHomeN);
+      const awayMatch = mAwayN.includes(awayN)  || awayN.includes(mAwayN);
+      if (!homeMatch || !awayMatch) continue;
+
+      let score = 1;
+      if (targetMs) {
+        const mMs = new Date(m.startDateTimeUtc || parseInt(m.startUtime || 0) * 1000).getTime();
+        const diffDays = Math.abs(targetMs - mMs) / 86400000;
+        if (diffDays > 3) continue; // too far away
+        score += Math.max(0, 3 - diffDays);
+      }
+      if (score > bestScore) { bestScore = score; best = m; }
+    }
+
+    if (!best) return res.json({ eventId: null });
+    res.json({ eventId: best.eventId });
+  } catch (err) {
+    console.error('match-lookup', err);
+    res.status(500).json({ error: err.message, eventId: null });
+  }
+});
+
 // ── Match Details + Stats (from Flashscore, by eventId) ─────────────────────
 router.get('/match-details/:eventId', async (req, res) => {
   try {

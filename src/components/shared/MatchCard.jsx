@@ -5,23 +5,31 @@ import { useLanguage } from '@/components/LanguageContext';
 import { formatDate } from '@/utils';
 import MatchStatsModal from './MatchStatsModal';
 
-/* ── Live clock ticker (seconds precision) ──────────────── */
+/* ── Live clock (seconds precision, injury time aware) ──── */
 function useLiveClock(match) {
-  const [clock, setClock] = useState({ min: match.minute ?? null, sec: null });
+  const [clock, setClock] = useState({ min: match.minute ?? null, sec: null, extra: null });
 
   useEffect(() => {
-    if (match.status !== 'live') { setClock({ min: match.minute ?? null, sec: null }); return; }
+    if (match.status !== 'live') {
+      setClock({ min: match.minute ?? null, sec: null, extra: null });
+      return;
+    }
 
     const compute = () => {
       const su = parseInt(match.stage_start_utime || 0);
-      if (!su) { setClock({ min: match.minute ?? null, sec: null }); return; }
-      const now = Date.now() / 1000;
+      if (!su) { setClock({ min: match.minute ?? null, sec: null, extra: null }); return; }
+      const now        = Date.now() / 1000;
       const elapsedSec = Math.max(0, now - su);
       const isSecondHalf = String(match.stage_id) === '13';
-      const baseMin = isSecondHalf ? 45 : 0;
-      const rawMin  = baseMin + Math.floor(elapsedSec / 60) + 1;
-      const sec     = Math.floor(elapsedSec % 60);
-      setClock({ min: Math.min(rawMin, isSecondHalf ? 95 : 45), sec });
+      const baseMin    = isSecondHalf ? 45 : 0;
+      const rawMin     = baseMin + Math.floor(elapsedSec / 60) + 1;
+      const sec        = Math.floor(elapsedSec % 60);
+      const limit      = isSecondHalf ? 90 : 45;
+      if (rawMin > limit) {
+        setClock({ min: limit, sec: 0, extra: { min: rawMin - limit, sec } });
+      } else {
+        setClock({ min: rawMin, sec, extra: null });
+      }
     };
 
     compute();
@@ -48,7 +56,7 @@ export default function MatchCard({ match, liveMatch, index = 0, variant = 'defa
   const isScheduled = displayMatch.status === 'scheduled';
   const isSecondHalf = String(displayMatch.stage_id) === '13';
   const clock = useLiveClock(displayMatch);
-  const { min: minute, sec } = clock;
+  const { min: minute, sec, extra } = clock;
   const canOpenStats = isLive || isHT || isFinished || match.api_fixture_id;
 
   return (
@@ -87,19 +95,22 @@ export default function MatchCard({ match, liveMatch, index = 0, variant = 'defa
                 {isArabic ? 'استراحة' : 'Half Time'}
               </span>
             )}
-            {isLive && (
-              <span className="flex items-center gap-1.5 px-3 py-1 bg-red-500 text-white text-xs font-black rounded-full shrink-0">
-                <span className="w-2 h-2 rounded-full bg-white animate-pulse" />
-                <span className="tabular-nums">
-                  {minute != null
-                    ? `${minute}:${String(sec ?? 0).padStart(2, '0')}`
-                    : (isArabic ? 'مباشر' : 'LIVE')}
+            {isLive && (() => {
+              const pad = (n) => String(n ?? 0).padStart(2, '0');
+              let timeStr;
+              if (minute == null)   timeStr = isArabic ? 'مباشر' : 'LIVE';
+              else if (extra)       timeStr = `${minute}+${extra.min}:${pad(extra.sec)}`;
+              else                  timeStr = `${minute}:${pad(sec)}`;
+              return (
+                <span className={`flex items-center gap-1.5 px-3 py-1 text-white text-xs font-black rounded-full shrink-0 ${extra ? 'bg-orange-500' : 'bg-red-500'}`}>
+                  <span className="w-2 h-2 rounded-full bg-white animate-pulse" />
+                  <span className="tabular-nums">{timeStr}</span>
+                  {isSecondHalf && !extra && (
+                    <span className="text-[9px] text-white/60">{isArabic ? 'ش٢' : '2H'}</span>
+                  )}
                 </span>
-                {isSecondHalf && (
-                  <span className="text-[9px] text-white/60">{isArabic ? 'ش٢' : '2H'}</span>
-                )}
-              </span>
-            )}
+              );
+            })()}
             {isFinished && (
               <span className="px-3 py-1 bg-gray-100 text-gray-600 text-xs font-bold rounded-full shrink-0">
                 {isArabic ? 'انتهت' : 'FT'}

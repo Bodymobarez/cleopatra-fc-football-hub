@@ -83,13 +83,29 @@ export default function MatchStatsModal({ match, liveMatch, onClose }) {
   const { isArabic } = useLanguage();
   const [activeTab, setActiveTab] = useState('stats');
 
-  const eventId = liveMatch?.event_id || match?.api_fixture_id;
+  const knownEventId = liveMatch?.event_id || match?.api_fixture_id || null;
 
-  const { data, isLoading } = useQuery({
+  // If no eventId, try to find it from Flashscore by team names + date
+  const { data: lookupData, isLoading: lookupLoading } = useQuery({
+    queryKey: ['match-lookup', match?.home_team, match?.away_team, match?.date],
+    queryFn: () => ceramicaCleopatra.matchLookup(
+      liveMatch?.home_team || match?.home_team,
+      liveMatch?.away_team || match?.away_team,
+      liveMatch?.date      || match?.date
+    ),
+    enabled: !knownEventId && !!(match?.home_team || liveMatch?.home_team),
+    staleTime: 10 * 60 * 1000,
+  });
+
+  const eventId = knownEventId || lookupData?.eventId || null;
+
+  const { data, isLoading: statsLoading } = useQuery({
     queryKey: ['match-details', eventId],
     queryFn: () => ceramicaCleopatra.matchDetails(eventId),
     enabled: !!eventId,
   });
+
+  const isLoading = lookupLoading || (!!eventId && statsLoading);
 
   const displayMatch = liveMatch || match;
   const isLive  = displayMatch?.status === 'live' || displayMatch?.status === 'halftime';

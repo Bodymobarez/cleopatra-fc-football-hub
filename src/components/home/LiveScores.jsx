@@ -13,30 +13,39 @@ const isCeramica = (name) =>
 const LIVE_STAGE_IDS   = new Set(['12','13','38','2','6','31','32']);
 const HT_STAGE_IDS     = new Set(['40','41']);
 
-// ── Live clock ticker (seconds precision) ───────────────────────
+// ── Live clock ticker (seconds precision, injury time aware) ────
 function useLiveClock(match) {
-  const [clock, setClock] = useState({ min: null, sec: null });
+  const [clock, setClock] = useState({ min: null, sec: null, extra: null });
 
   useEffect(() => {
-    if (match.status !== 'live') { setClock({ min: match.minute ?? null, sec: null }); return; }
+    if (match.status !== 'live') {
+      setClock({ min: match.minute ?? null, sec: null, extra: null });
+      return;
+    }
 
     const compute = () => {
       const su = parseInt(match.stage_start_utime || 0);
-      if (!su) { setClock({ min: match.minute ?? null, sec: null }); return; }
+      if (!su) { setClock({ min: match.minute ?? null, sec: null, extra: null }); return; }
 
-      const now    = Date.now() / 1000;
+      const now        = Date.now() / 1000;
       const elapsedSec = Math.max(0, now - su);
       const isSecondHalf = String(match.stage_id) === '13';
-      const baseMin = isSecondHalf ? 45 : 0;
-      const maxMin  = isSecondHalf ? 95 : 45; // allow 5 min injury time
+      const normalMax  = isSecondHalf ? 45 : 45; // 45 min per half
+      const baseMin    = isSecondHalf ? 45 : 0;
+      const rawMin     = baseMin + Math.floor(elapsedSec / 60) + 1;
+      const sec        = Math.floor(elapsedSec % 60);
+      const limit      = isSecondHalf ? 90 : 45;
 
-      const rawMin = baseMin + Math.floor(elapsedSec / 60) + 1;
-      const sec    = Math.floor(elapsedSec % 60);
-      setClock({ min: Math.min(rawMin, maxMin), sec });
+      if (rawMin > limit) {
+        // Injury time: show 45+X:XX or 90+X:XX
+        setClock({ min: limit, sec: 0, extra: { min: rawMin - limit, sec } });
+      } else {
+        setClock({ min: rawMin, sec, extra: null });
+      }
     };
 
     compute();
-    const id = setInterval(compute, 1000); // tick every second
+    const id = setInterval(compute, 1000);
     return () => clearInterval(id);
   }, [match.status, match.stage_start_utime, match.stage_id, match.minute]);
 
@@ -62,17 +71,24 @@ function LiveBadge({ match, clock, isArabic }) {
   }
 
   if (isLive) {
-    const { min, sec } = clock;
+    const { min, sec, extra } = clock;
     const pad = (n) => String(n ?? 0).padStart(2, '0');
-    const timeStr = min != null
-      ? `${min}:${pad(sec)}`
-      : (isArabic ? 'مباشر' : 'LIVE');
+    let timeStr;
+    if (min == null) {
+      timeStr = isArabic ? 'مباشر' : 'LIVE';
+    } else if (extra) {
+      timeStr = `${min}+${extra.min}:${pad(extra.sec)}`;
+    } else {
+      timeStr = `${min}:${pad(sec)}`;
+    }
 
     return (
       <span className="flex items-center gap-1.5 shrink-0">
         <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-        <span className="text-red-400 font-black text-sm tabular-nums">{timeStr}</span>
-        {isSecondHalf && (
+        <span className={`font-black text-sm tabular-nums ${extra ? 'text-orange-400' : 'text-red-400'}`}>
+          {timeStr}
+        </span>
+        {isSecondHalf && !extra && (
           <span className="text-[9px] text-white/30 font-bold uppercase">
             {isArabic ? 'ش٢' : '2H'}
           </span>
