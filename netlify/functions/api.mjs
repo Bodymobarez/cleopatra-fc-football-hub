@@ -525,7 +525,6 @@ syncRouter.post('/squad', async (_req, res) => {
   try {
     const { query } = getSQL();
     const teamData = await flashscore(`/api/flashscore/team/${CERAMICA_SLUG}/${CERAMICA_ID}`);
-    const ceramicaLogo = teamData.teamLogo || '';
 
     // Collect all players from all squad groups, de-duplicate by id
     const seen = new Set();
@@ -541,9 +540,32 @@ syncRouter.post('/squad', async (_req, res) => {
 
     const posMap = { Goalkeepers:'Goalkeeper', Defenders:'Defender', Midfielders:'Midfielder', Forwards:'Forward' };
 
+    // Fetch real photos for each player (rate limit: 3 RPS → sleep 400ms between calls)
+    const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+    const playerDetails = {};
+    for (const p of allPlayers) {
+      try {
+        const detail = await flashscore(`/api/flashscore/player/${p.slug}/${p.id}`);
+        if (detail.photo) playerDetails[p.id] = detail;
+        await sleep(400); // respect 3 RPS rate limit
+      } catch (_) {}
+    }
+
     await query('DELETE FROM players', []);
     for (const p of allPlayers) {
+      const detail = playerDetails[p.id] || {};
       const name = `${p.firstName} ${p.lastName}`.trim();
+      const photo = detail.photo ||
+        `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&size=400&background=1B2852&color=FFB81C&bold=true`;
+
+      const stats = {
+        appearances: 0, goals: 0, assists: 0, yellow_cards: 0, red_cards: 0,
+        dob: detail.dob || null,
+        market_value: detail.marketValue || null,
+        contract_expires: detail.contractExpires || null,
+        flashscore_id: p.id,
+      };
+
       await query(
         `INSERT INTO players (name, number, position, nationality, photo_url, status, is_captain, stats)
          VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
@@ -552,15 +574,21 @@ syncRouter.post('/squad', async (_req, res) => {
           p.jerseyNumber ? parseInt(p.jerseyNumber) || null : null,
           posMap[p.position] || p.position || 'Midfielder',
           p.countryName || 'Egyptian',
-          `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&size=400&background=1B2852&color=FFB81C`,
+          photo,
           'available',
           false,
-          JSON.stringify({ appearances: 0, goals: 0, assists: 0, yellow_cards: 0, red_cards: 0 }),
+          JSON.stringify(stats),
         ],
       );
     }
 
-    res.json({ synced: true, players: allPlayers.length, team: teamData.teamName, updatedAt: new Date().toISOString() });
+    res.json({
+      synced: true,
+      players: allPlayers.length,
+      withPhotos: Object.keys(playerDetails).length,
+      team: teamData.teamName,
+      updatedAt: new Date().toISOString(),
+    });
   } catch (err) {
     console.error('sync/squad', err);
     res.status(500).json({ error: err.message });
@@ -627,31 +655,158 @@ syncRouter.post('/matches', async (_req, res) => {
 syncRouter.post('/topscorers', async (_req, res) => {
   try {
     const { query } = getSQL();
-    // Use standings data + results to derive top scorers
-    const results = await flashscore(`${EPL_PATH}/${SEASON}/results?page=1`).catch(() => []);
-
-    // Count goals per player from match events (limited data from standings events)
-    // We'll create a news article about the current standings leaders
     const standings = await flashscore(`${EPL_PATH}/${SEASON}/standings`).catch(() => []);
     const top5 = (Array.isArray(standings) ? standings : []).slice(0, 5);
-    const rows = top5.map((t, i) => `${i+1}. ${t.teamName} — ${t.points} pts (${t.goals})`).join('\n');
-
-    const title = `Egyptian Premier League ${SEASON} Standings Update`;
-    const excerpt = top5[0] ? `${top5[0].teamName} leads with ${top5[0].points} points` : 'Updated standings';
-
+    const rows = top5.map((t, i) => `${i+1}. ${t.teamName} — ${t.points} pts (${t.goals} goals)`).join('\n');
+    const title = `Egyptian Premier League ${SEASON} — Latest Standings`;
+    const excerpt = top5[0] ? `${top5[0].teamName} leads the table with ${top5[0].points} points` : 'Updated standings';
     await query(
       `INSERT INTO news (title,excerpt,content,category,is_club_news,is_featured,is_breaking,status,featured_image,published_at,tags,views)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
-       ON CONFLICT DO NOTHING`,
-      [title, excerpt, `EGYPTIAN PREMIER LEAGUE ${SEASON}\n\nTOP STANDINGS\n\n${rows}`,
-       'statistics', true, false, false, 'published',
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
+      [title, excerpt, `EGYPTIAN PREMIER LEAGUE ${SEASON}\n\nLATEST STANDINGS\n\n${rows}`,
+       'league', false, false, false, 'published',
        'https://images.unsplash.com/photo-1431324155629-1a6deb1dec8d?w=800',
        new Date().toISOString(), JSON.stringify(['standings', 'EPL', SEASON]), 0],
     );
-
     res.json({ synced: true, season: SEASON, updatedAt: new Date().toISOString() });
   } catch (err) {
     console.error('sync/topscorers', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── News from Ceramica Matches (real match reports) ─────────────────────────
+syncRouter.post('/news', async (_req, res) => {
+  try {
+    const { query } = getSQL();
+    const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+
+    // Get all EPL results
+    const resultsRaw = await flashscore(`${EPL_PATH}/${SEASON}/results?page=1`).catch(() => []);
+    const fixturesRaw = await flashscore(`${EPL_PATH}/${SEASON}/fixtures?page=1`).catch(() => []);
+
+    // Filter Ceramica matches only
+    const ceramicaResults  = (Array.isArray(resultsRaw)  ? resultsRaw  : []).filter(m =>
+      m.homeParticipantIds === CERAMICA_ID || m.awayParticipantIds === CERAMICA_ID
+    );
+    const ceramicaFixtures = (Array.isArray(fixturesRaw) ? fixturesRaw : []).filter(m =>
+      m.homeParticipantIds === CERAMICA_ID || m.awayParticipantIds === CERAMICA_ID
+    );
+
+    const matchImages = [
+      'https://images.unsplash.com/photo-1508768787810-6adc1f613514?w=800',
+      'https://images.unsplash.com/photo-1577223625816-7546f13df25d?w=800',
+      'https://images.unsplash.com/photo-1574629810360-7efbbe195018?w=800',
+      'https://images.unsplash.com/photo-1434648957308-5e6a859697e8?w=800',
+      'https://images.unsplash.com/photo-1543326727-cf6c39e8f84c?w=800',
+      'https://images.unsplash.com/photo-1522778119026-d647f0596c20?w=800',
+      'https://images.unsplash.com/photo-1596526131083-e8c633c948d2?w=800',
+    ];
+
+    const articlesCreated = [];
+
+    // ── Match reports for finished Ceramica matches
+    for (let i = 0; i < ceramicaResults.length; i++) {
+      const m = ceramicaResults[i];
+      const isCeramicaHome = m.homeParticipantIds === CERAMICA_ID;
+      const ceramicaScore  = isCeramicaHome ? parseInt(m.homeFullTimeScore || m.homeScore || 0) : parseInt(m.awayFullTimeScore || m.awayScore || 0);
+      const opponentScore  = isCeramicaHome ? parseInt(m.awayFullTimeScore || m.awayScore || 0) : parseInt(m.homeFullTimeScore || m.homeScore || 0);
+      const opponent       = isCeramicaHome ? m.awayName : m.homeName;
+      const opponentLogo   = isCeramicaHome ? fsLogo(m.awayLogo) : fsLogo(m.homeLogo);
+      const venue          = isCeramicaHome ? 'Arab Contractors Stadium, Cairo' : `${opponent} Stadium`;
+      const matchDate      = new Date(m.startDateTimeUtc || parseInt(m.startUtime || 0) * 1000);
+      const round          = m.round || '';
+
+      const result = ceramicaScore > opponentScore ? 'WIN' : ceramicaScore < opponentScore ? 'LOSS' : 'DRAW';
+      const resultAr = result === 'WIN' ? 'فوز' : result === 'LOSS' ? 'خسارة' : 'تعادل';
+
+      // Fetch match events for detail (with rate limiting)
+      let events = [];
+      try {
+        const detail = await flashscore(`/api/flashscore/match/${m.eventId}/details?with_events=true`);
+        events = detail.events || [];
+        await sleep(400);
+      } catch (_) {}
+
+      // Build event timeline
+      const goals = events.filter(e => {
+        const types = Array.isArray(e.incidentType) ? e.incidentType : [e.incidentType];
+        return types.includes('3'); // Goal type
+      });
+      const cards = events.filter(e => {
+        const types = Array.isArray(e.incidentType) ? e.incidentType : [e.incidentType];
+        return types.includes('1') || types.includes('2');
+      });
+
+      const goalLines = goals.map(g => {
+        const scorer = Array.isArray(g.incidentPlayerName) ? g.incidentPlayerName[0] : g.incidentPlayerName;
+        const assist  = Array.isArray(g.incidentPlayerName) && g.incidentPlayerName[1] ? ` (Assist: ${g.incidentPlayerName[1]})` : '';
+        const side    = g.incidentSide === '1' ? 'Ceramica Cleopatra' : opponent;
+        return `⚽ ${g.incidentTime} — ${scorer}${assist} (${side})`;
+      }).join('\n');
+
+      const title = result === 'WIN'
+        ? `Ceramica Cleopatra Defeat ${opponent} ${ceramicaScore}-${opponentScore}`
+        : result === 'DRAW'
+        ? `Ceramica Cleopatra Draw ${ceramicaScore}-${ceramicaScore} Against ${opponent}`
+        : `Ceramica Cleopatra Fall ${ceramicaScore}-${opponentScore} to ${opponent}`;
+
+      const excerpt = `${resultAr}! سيراميكا كليوباترا ${ceramicaScore}-${opponentScore} ${opponent} في ${round}.`;
+
+      const content = `${title}
+
+MATCH REPORT — ${round}
+${matchDate.toLocaleDateString('en-GB', { day:'numeric', month:'long', year:'numeric' })}
+Venue: ${venue}
+
+FINAL SCORE
+Ceramica Cleopatra ${ceramicaScore} — ${opponentScore} ${opponent}
+
+${goalLines ? `GOALS\n${goalLines}\n` : ''}
+${cards.length > 0 ? `CARDS\n${cards.map(c => {
+  const player = Array.isArray(c.incidentPlayerName) ? c.incidentPlayerName[0] : c.incidentPlayerName;
+  const types = Array.isArray(c.incidentType) ? c.incidentType : [c.incidentType];
+  const cardType = types.includes('2') ? '🟥 Red Card' : '🟨 Yellow Card';
+  const side = c.incidentSide === '1' ? 'Ceramica Cleopatra' : opponent;
+  return `${cardType} ${c.incidentTime} — ${player} (${side})`;
+}).join('\n')}\n` : ''}
+The match was played at ${venue} in Round ${round.replace('Round ', '')} of the Egyptian Premier League ${SEASON}.`;
+
+      const img = matchImages[i % matchImages.length];
+
+      await query(
+        `INSERT INTO news (title,excerpt,content,category,is_club_news,is_featured,is_breaking,status,featured_image,published_at,tags,views)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
+        [title, excerpt, content, 'match_report', true,
+         result === 'WIN', false, 'published', img,
+         matchDate.toISOString(), JSON.stringify(['match report', result.toLowerCase(), 'Ceramica', SEASON, opponent]), 0],
+      );
+      articlesCreated.push(title);
+    }
+
+    // ── Upcoming match previews
+    for (const m of ceramicaFixtures.slice(0, 3)) {
+      const isCeramicaHome = m.homeParticipantIds === CERAMICA_ID;
+      const opponent   = isCeramicaHome ? m.awayName : m.homeName;
+      const matchDate  = new Date(m.startDateTimeUtc || parseInt(m.startUtime || 0) * 1000);
+      const round      = m.round || '';
+      const title      = `Preview: Ceramica Cleopatra vs ${opponent} — ${round}`;
+      const excerpt    = `Ceramica Cleopatra face ${opponent} in an important EPL ${SEASON} fixture.`;
+      const content    = `MATCH PREVIEW\n\nCeramica Cleopatra are set to face ${opponent} in ${round} of the Egyptian Premier League ${SEASON}.\n\nThe match is scheduled for ${matchDate.toLocaleDateString('en-GB', { day:'numeric', month:'long', year:'numeric' })} at ${matchDate.toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit' })} (Cairo time).\n\nBoth teams will be looking to secure an important three points in this highly anticipated fixture.`;
+
+      await query(
+        `INSERT INTO news (title,excerpt,content,category,is_club_news,is_featured,is_breaking,status,featured_image,published_at,tags,views)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
+        [title, excerpt, content, 'preview', true, false, false, 'published',
+         matchImages[3], matchDate.toISOString(),
+         JSON.stringify(['preview', 'upcoming', 'Ceramica', SEASON, opponent]), 0],
+      );
+      articlesCreated.push(title);
+    }
+
+    res.json({ synced: true, articles: articlesCreated.length, titles: articlesCreated, updatedAt: new Date().toISOString() });
+  } catch (err) {
+    console.error('sync/news', err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -660,7 +815,7 @@ syncRouter.post('/topscorers', async (_req, res) => {
 syncRouter.post('/all', async (req, res) => {
   const results = {};
   const base = `${req.protocol}://${req.get('host')}${req.baseUrl.replace('/sync', '')}`;
-  for (const name of ['standings', 'squad', 'matches', 'topscorers']) {
+  for (const name of ['standings', 'squad', 'matches', 'topscorers', 'news']) {
     try {
       const r = await fetch(`${base}/sync/${name}`, { method: 'POST', headers: { 'content-type': 'application/json' } });
       results[name] = await r.json();

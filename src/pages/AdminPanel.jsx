@@ -512,10 +512,11 @@ function SyncTab() {
   };
 
   const syncs = [
-    { id:'standings',  label:'جدول الترتيب', sub:'Egyptian Premier League', icon:Trophy, color:'from-[#FFB81C] to-yellow-600', fn: ceramicaCleopatra.admin.syncStandings },
-    { id:'squad',      label:'قائمة اللاعبين', sub:'Ceramica Cleopatra Team', icon:Users, color:'from-[#1B2852] to-blue-900', fn: ceramicaCleopatra.admin.syncSquad },
-    { id:'matches',    label:'المباريات',      sub:'Fixtures & Results',      icon:Calendar, color:'from-green-600 to-emerald-700', fn: ceramicaCleopatra.admin.syncMatches },
-    { id:'topscorers', label:'الهدافون',       sub:'Top Scorers Article',     icon:TrendingUp, color:'from-[#C8102E] to-red-700', fn: ceramicaCleopatra.admin.syncTopScorers },
+    { id:'standings',  label:'جدول الترتيب',   sub:'Egyptian Premier League 2025-26',  icon:Trophy,     color:'from-[#FFB81C] to-yellow-600',     fn: ceramicaCleopatra.admin.syncStandings },
+    { id:'squad',      label:'قائمة اللاعبين', sub:'مع صور حقيقية من Flashscore',       icon:Users,      color:'from-[#1B2852] to-blue-900',       fn: ceramicaCleopatra.admin.syncSquad },
+    { id:'matches',    label:'المباريات',       sub:'نتائج ومواعيد 2025-26',             icon:Calendar,   color:'from-green-600 to-emerald-700',    fn: ceramicaCleopatra.admin.syncMatches },
+    { id:'news',       label:'أخبار المباريات', sub:'تقارير حقيقية من مباريات سيراميكا', icon:Newspaper,  color:'from-purple-600 to-purple-800',    fn: ceramicaCleopatra.admin.syncNews },
+    { id:'topscorers', label:'ترتيب الدوري',   sub:'مقال عن الترتيب الحالي',             icon:TrendingUp, color:'from-[#C8102E] to-red-700',        fn: ceramicaCleopatra.admin.syncTopScorers },
   ];
 
   return (
@@ -543,7 +544,7 @@ function SyncTab() {
             {results[s.id] && (
               <div className={`mt-3 text-xs rounded-lg px-3 py-2 ${results[s.id].ok ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400'}`}>
                 {results[s.id].ok
-                  ? `✓ Synced — ${results[s.id].teams || results[s.id].players || results[s.id].matches || results[s.id].topScorers || 'done'} records`
+                  ? `✓ Synced — ${results[s.id].teams || results[s.id].players || results[s.id].matches || results[s.id].articles || results[s.id].topScorers || 'done'} records`
                   : `✗ ${results[s.id].error}`}
               </div>
             )}
