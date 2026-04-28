@@ -1,45 +1,53 @@
-// REST API client — replaces Base44 SDK.
-// All pages import { ceramicaCleopatra } with the same interface as before.
+// REST API client — Ceramica Cleopatra FC (with JWT auth support)
 
 const API_BASE = '/api';
 
+const getToken = () => localStorage.getItem('cc_token');
+export const setToken = (t) => t ? localStorage.setItem('cc_token', t) : localStorage.removeItem('cc_token');
+
 const apiFetch = async (method, path, body = null) => {
+  const headers = { 'Content-Type': 'application/json' };
+  const token = getToken();
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+
   const res = await fetch(`${API_BASE}${path}`, {
     method,
-    headers: { 'Content-Type': 'application/json' },
+    headers,
     ...(body !== null ? { body: JSON.stringify(body) } : {}),
   });
+
   if (!res.ok) {
     let msg = `API ${method} ${path}: ${res.status}`;
     try { const t = await res.text(); msg += ` — ${t}`; } catch (_) {}
-    throw new Error(msg);
+    const err = new Error(msg);
+    err.status = res.status;
+    throw err;
   }
   return res.json();
 };
 
+// Normalize list/filter response — handle both array and { data, total } shapes
+const normalize = (r) => Array.isArray(r) ? r : (r?.data ?? r ?? []);
+
 const makeEntity = (resource) => ({
-  /** list(sort?, limit?) → GET /api/<resource>?sort=...&limit=... */
   list: (sort = '', limit = 100) => {
     const p = new URLSearchParams();
-    if (sort)  p.set('sort',  sort);
+    if (sort)  p.set('sort', sort);
     if (limit) p.set('limit', String(limit));
-    return apiFetch('GET', `/${resource}?${p}`);
+    return apiFetch('GET', `/${resource}?${p}`).then(normalize);
   },
-
-  /** filter(filters, sort?, limit?) → GET /api/<resource>?...filters...&sort=...&limit=... */
   filter: (filters = {}, sort = '', limit = 100) => {
     const p = new URLSearchParams();
-    for (const [k, v] of Object.entries(filters)) {
+    for (const [k, v] of Object.entries(filters))
       if (v !== undefined && v !== null) p.set(k, String(v));
-    }
-    if (sort)  p.set('sort',  sort);
+    if (sort)  p.set('sort', sort);
     if (limit) p.set('limit', String(limit));
-    return apiFetch('GET', `/${resource}?${p}`);
+    return apiFetch('GET', `/${resource}?${p}`).then(normalize);
   },
-
-  create: (data)      => apiFetch('POST',   `/${resource}`,       data),
-  update: (id, data)  => apiFetch('PUT',    `/${resource}/${id}`, data),
-  delete: (id)        => apiFetch('DELETE', `/${resource}/${id}`),
+  create: (data)     => apiFetch('POST',   `/${resource}`,       data),
+  update: (id, data) => apiFetch('PUT',    `/${resource}/${id}`, data),
+  delete: (id)       => apiFetch('DELETE', `/${resource}/${id}`),
+  getOne: (id)       => apiFetch('GET',    `/${resource}/${id}`),
 });
 
 export const ceramicaCleopatra = {
@@ -51,25 +59,41 @@ export const ceramicaCleopatra = {
     Poll:     makeEntity('polls'),
     Comment:  makeEntity('comments'),
     Standing: makeEntity('standings'),
+    SubscriptionPlan: makeEntity('subscription_plans'),
   },
 
-  // Auth stubs — app runs in public/no-auth mode (no network calls)
   auth: {
-    me:              () => Promise.resolve(null),
-    isAuthenticated: () => Promise.resolve(false),
-    logout:          () => {},
-    redirectToLogin: () => {},
+    register: (data) => apiFetch('POST', '/auth/register', data),
+    login:    (data) => apiFetch('POST', '/auth/login', data),
+    me:       ()     => apiFetch('GET',  '/auth/me'),
+    updateProfile:  (data) => apiFetch('PUT', '/auth/profile', data),
+    changePassword: (data) => apiFetch('PUT', '/auth/change-password', data),
+    isAuthenticated: () => Promise.resolve(!!getToken()),
+    logout: () => { setToken(null); },
+    redirectToLogin: () => { window.location.href = '/Login'; },
   },
 
-  // App logging — no-op
-  appLogs: {
-    logUserInApp: () => Promise.resolve(),
-  },
-
-  // Integrations — no-op (Admin page used Base44 LLM; leave stubs so page renders)
-  integrations: {
-    Core: {
-      InvokeLLM: () => Promise.resolve({}),
+  admin: {
+    getStats:  ()       => apiFetch('GET', '/admin/stats'),
+    getUsers:  (params) => {
+      const p = new URLSearchParams(params || {});
+      return apiFetch('GET', `/admin/users?${p}`);
     },
+    updateUser:  (id, data)   => apiFetch('PUT', `/admin/users/${id}`, data),
+    deleteUser:  (id)         => apiFetch('DELETE', `/admin/users/${id}`),
+    assignSub:   (id, data)   => apiFetch('POST', `/admin/users/${id}/subscription`, data),
+    syncStandings:  () => apiFetch('POST', '/sync/standings'),
+    syncSquad:      () => apiFetch('POST', '/sync/squad'),
+    syncMatches:    () => apiFetch('POST', '/sync/matches'),
+    syncTopScorers: () => apiFetch('POST', '/sync/topscorers'),
+    syncAll:        () => apiFetch('POST', '/sync/all'),
   },
+
+  settings: {
+    get:  ()     => apiFetch('GET', '/settings'),
+    save: (data) => apiFetch('PUT', '/settings', data),
+  },
+
+  appLogs: { logUserInApp: () => Promise.resolve() },
+  integrations: { Core: { InvokeLLM: () => Promise.resolve({}) } },
 };

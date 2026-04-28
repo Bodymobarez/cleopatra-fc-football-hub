@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
 import { ceramicaCleopatra } from '@/api/ceramicaCleopatraClient';
+import { useAuth } from '@/lib/AuthContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Menu, X, Home, Users, Calendar, Newspaper, Trophy, 
@@ -48,21 +49,8 @@ const navigation = [
 export default function Layout({ children, currentPageName }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
-  const [user, setUser] = useState(null);
   const location = useLocation();
-
-  useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        const isAuth = await ceramicaCleopatra.auth.isAuthenticated();
-        if (isAuth) {
-          const userData = await ceramicaCleopatra.auth.me();
-          setUser(userData);
-        }
-      } catch (e) {}
-    };
-    checkAuth();
-  }, []);
+  const { user, isAdmin, logout } = useAuth();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -153,16 +141,22 @@ export default function Layout({ children, currentPageName }) {
                       {user.email}
                     </DropdownMenuItem>
                     <DropdownMenuSeparator className="bg-white/10" />
-                    {user.role === 'admin' && (
+                    <DropdownMenuItem asChild>
+                      <Link to={createPageUrl('Dashboard')} className="text-white/80 hover:text-white hover:bg-white/10">
+                        <User className="w-4 h-4 mr-2" />
+                        My Dashboard
+                      </Link>
+                    </DropdownMenuItem>
+                    {isAdmin && (
                       <DropdownMenuItem asChild>
-                        <Link to={createPageUrl('Admin')} className="text-white/80 hover:text-white hover:bg-white/10">
+                        <Link to={createPageUrl('AdminPanel')} className="text-white/80 hover:text-white hover:bg-white/10">
                           <Settings className="w-4 h-4 mr-2" />
-                          Admin Dashboard
+                          Admin Panel
                         </Link>
                       </DropdownMenuItem>
                     )}
                     <DropdownMenuItem 
-                      onClick={() => ceramicaCleopatra.auth.logout()}
+                      onClick={logout}
                       className="text-red-400 hover:text-red-300 hover:bg-white/10 cursor-pointer"
                     >
                       <LogOut className="w-4 h-4 mr-2" />
@@ -171,13 +165,15 @@ export default function Layout({ children, currentPageName }) {
                   </DropdownMenuContent>
                 </DropdownMenu>
               ) : (
-                <button 
-                  onClick={() => ceramicaCleopatra.auth.redirectToLogin()}
-                  className="hidden sm:flex items-center gap-2 px-4 py-2 bg-[#FFB81C] text-[#1B2852] font-bold rounded-lg hover:bg-[#f5a815] transition-colors"
-                >
-                  <User className="w-4 h-4" />
-                  Login
-                </button>
+                <div className="hidden sm:flex items-center gap-2">
+                  <Link to={createPageUrl('Login')} className="px-3 py-2 text-white/70 hover:text-white text-sm font-medium transition-colors">
+                    Sign In
+                  </Link>
+                  <Link to={createPageUrl('Register')} className="flex items-center gap-1.5 px-4 py-2 bg-[#FFB81C] text-[#1B2852] font-bold rounded-lg hover:bg-[#f5a815] transition-colors text-sm">
+                    <User className="w-4 h-4" />
+                    Join Now
+                  </Link>
+                </div>
               )}
 
               {/* Mobile Menu Button */}
@@ -239,13 +235,15 @@ export default function Layout({ children, currentPageName }) {
               </nav>
 
               {!user && (
-                <button 
-                  onClick={() => ceramicaCleopatra.auth.redirectToLogin()}
-                  className="w-full mt-6 flex items-center justify-center gap-2 px-4 py-3 bg-[#FFB81C] text-[#1B2852] font-bold rounded-lg"
-                >
-                  <User className="w-5 h-5" />
-                  Login
-                </button>
+                <div className="mt-6 flex flex-col gap-2">
+                  <Link to={createPageUrl('Login')} className="w-full text-center px-4 py-3 border border-white/20 text-white font-bold rounded-lg">
+                    Sign In
+                  </Link>
+                  <Link to={createPageUrl('Register')} className="w-full text-center flex items-center justify-center gap-2 px-4 py-3 bg-[#FFB81C] text-[#1B2852] font-bold rounded-lg">
+                    <User className="w-5 h-5" />
+                    Join Now
+                  </Link>
+                </div>
               )}
             </div>
           </motion.div>

@@ -5,11 +5,15 @@ import News from './pages/News';
 import NewsDetail from './pages/NewsDetail';
 import GlobalNews from './pages/GlobalNews';
 import Admin from './pages/Admin';
+import AdminPanel from './pages/AdminPanel';
 import Standings from './pages/Standings';
 import About from './pages/About';
 import Academy from './pages/Academy';
 import FanZone from './pages/FanZone';
 import Media from './pages/Media';
+import Login from './pages/Login';
+import Register from './pages/Register';
+import Dashboard from './pages/Dashboard';
 import __Layout from './Layout.jsx';
 
 
@@ -21,11 +25,15 @@ export const PAGES = {
     "NewsDetail": NewsDetail,
     "GlobalNews": GlobalNews,
     "Admin": Admin,
+    "AdminPanel": AdminPanel,
     "Standings": Standings,
     "About": About,
     "Academy": Academy,
     "FanZone": FanZone,
     "Media": Media,
+    "Login": Login,
+    "Register": Register,
+    "Dashboard": Dashboard,
 }
 
 export const pagesConfig = {

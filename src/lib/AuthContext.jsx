@@ -1,33 +1,64 @@
-import React, { createContext, useState, useContext } from 'react';
-import { ceramicaCleopatra } from '@/api/ceramicaCleopatraClient';
+import React, { createContext, useState, useContext, useEffect, useCallback } from 'react';
+import { ceramicaCleopatra, setToken } from '@/api/ceramicaCleopatraClient';
 
 const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
-  const [user]                       = useState(null);
-  const [isAuthenticated]            = useState(false);
-  const [isLoadingAuth]              = useState(false);
-  const [isLoadingPublicSettings]    = useState(false);
-  const [authError]                  = useState(null);
+  const [user,         setUser]         = useState(null);
+  const [subscription, setSubscription] = useState(null);
+  const [isLoading,    setIsLoading]    = useState(true);
 
-  const logout = () => {
-    try { ceramicaCleopatra.auth.logout(); } catch {}
+  const loadMe = useCallback(async () => {
+    const token = localStorage.getItem('cc_token');
+    if (!token) { setIsLoading(false); return; }
+    try {
+      const { user: u, subscription: s } = await ceramicaCleopatra.auth.me();
+      setUser(u);
+      setSubscription(s);
+    } catch {
+      setToken(null);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { loadMe(); }, [loadMe]);
+
+  const login = async (email, password) => {
+    const data = await ceramicaCleopatra.auth.login({ email, password });
+    setToken(data.token);
+    setUser(data.user);
+    setSubscription(data.subscription);
+    return data;
   };
 
-  const navigateToLogin   = () => {};
-  const checkAppState     = () => {};
+  const register = async (formData) => {
+    const data = await ceramicaCleopatra.auth.register(formData);
+    setToken(data.token);
+    setUser(data.user);
+    return data;
+  };
+
+  const logout = () => {
+    setToken(null);
+    setUser(null);
+    setSubscription(null);
+    window.location.href = '/';
+  };
+
+  const isAuthenticated       = !!user;
+  const isAdmin               = user?.role === 'admin';
+  const isLoadingAuth         = isLoading;
+  const isLoadingPublicSettings = false;
+  const authError             = null;
 
   return (
     <AuthContext.Provider value={{
-      user,
-      isAuthenticated,
-      isLoadingAuth,
-      isLoadingPublicSettings,
-      authError,
-      appPublicSettings: null,
-      logout,
-      navigateToLogin,
-      checkAppState,
+      user, subscription, isAuthenticated, isAdmin,
+      isLoadingAuth, isLoadingPublicSettings, authError,
+      login, register, logout, loadMe,
+      navigateToLogin: () => { window.location.href = '/Login'; },
+      checkAppState: loadMe,
     }}>
       {children}
     </AuthContext.Provider>
@@ -35,7 +66,7 @@ export const AuthProvider = ({ children }) => {
 };
 
 export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (!context) throw new Error('useAuth must be used within an AuthProvider');
-  return context;
+  const ctx = useContext(AuthContext);
+  if (!ctx) throw new Error('useAuth must be used within an AuthProvider');
+  return ctx;
 };
