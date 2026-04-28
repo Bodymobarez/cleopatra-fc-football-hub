@@ -4,7 +4,7 @@ import { ceramicaCleopatra } from '@/api/ceramicaCleopatraClient';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { createPageUrl, ensureArray } from '@/utils';
-import { format } from 'date-fns';
+import { formatDate, getCategoryLabel } from '@/utils';
 import { motion } from 'framer-motion';
 import ReactMarkdown from 'react-markdown';
 import { 
@@ -116,7 +116,7 @@ export default function NewsDetail() {
               animate={{ opacity: 1, y: 0 }}
             >
               <span className={`inline-block px-3 py-1 rounded-full text-xs font-bold mb-4 ${categoryColors[article.category] || 'bg-gray-500 text-white'}`}>
-                {article.category?.replace(/_/g, ' ').toUpperCase()}
+                {getCategoryLabel(article.category, isArabic)}
               </span>
               <h1 className="text-3xl md:text-5xl font-black text-white mb-4">
                 {article.title}
@@ -136,7 +136,7 @@ export default function NewsDetail() {
                 )}
                 <span className="flex items-center gap-1">
                   <Clock className="w-4 h-4" />
-                  {article.published_at ? format(new Date(article.published_at), 'MMMM d, yyyy') : (isArabic ? 'حديثاً' : 'Recent')}
+                  {formatDate(article.published_at, isArabic)}
                 </span>
                 {article.views > 0 && (
                   <span className="flex items-center gap-1">
@@ -236,7 +236,7 @@ export default function NewsDetail() {
                         </h4>
                         <span className="text-xs text-gray-400 mt-2 flex items-center gap-1">
                           <Clock className="w-3 h-3" />
-                          {news.published_at ? format(new Date(news.published_at), 'MMM d') : 'Recent'}
+                          {formatDate(news.published_at, isArabic, true)}
                         </span>
                       </div>
                     </div>

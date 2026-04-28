@@ -3,8 +3,8 @@ import { Link } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
 import { motion } from 'framer-motion';
 import { Calendar, MapPin, Clock } from 'lucide-react';
-import { format } from 'date-fns';
 import { useLanguage } from '@/components/LanguageContext';
+import { formatDate } from '@/utils';
 
 export default function MatchCard({ match, index = 0, variant = 'default' }) {
   const { isArabic } = useLanguage();
@@ -103,11 +103,11 @@ export default function MatchCard({ match, index = 0, variant = 'default' }) {
           }`}>
             <span className="flex items-center gap-1">
               <Calendar className="w-4 h-4" />
-              {format(new Date(match.date), isArabic ? 'd MMM yyyy' : 'MMM d, yyyy')}
+              {formatDate(match.date, isArabic)}
             </span>
             <span className="flex items-center gap-1">
               <Clock className="w-4 h-4" />
-              {format(new Date(match.date), 'HH:mm')}
+              {new Date(match.date).toLocaleTimeString(isArabic ? 'ar-EG' : 'en-US', { hour: '2-digit', minute: '2-digit', hour12: false })}
             </span>
             {match.venue && variant !== 'compact' && (
               <span className="flex items-center gap-1">

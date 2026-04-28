@@ -4,8 +4,9 @@ import { useQuery } from '@tanstack/react-query';
 import { ensureArray } from '@/utils';
 import { motion } from 'framer-motion';
 import { Calendar, Filter, ChevronLeft, ChevronRight } from 'lucide-react';
-import { format, startOfMonth, endOfMonth, addMonths, subMonths, isSameMonth } from 'date-fns';
+import { startOfMonth, endOfMonth, addMonths, subMonths, isSameMonth } from 'date-fns';
 import MatchCard from '@/components/shared/MatchCard';
+import { formatDate } from '@/utils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useLanguage } from '@/components/LanguageContext';
 
@@ -94,7 +95,7 @@ export default function Matches() {
                       <span className="text-sm font-medium text-[#0a1628]">{match.away_team}</span>
                     </div>
                     <div className="text-right">
-                      <span className="text-sm text-gray-500">{format(new Date(match.date), 'MMM d')}</span>
+                      <span className="text-sm text-gray-500">{formatDate(match.date, isArabic, true)}</span>
                     </div>
                   </div>
                 ))}
@@ -119,12 +120,12 @@ export default function Matches() {
                       <span className="text-sm font-medium text-[#0a1628]">{match.away_team}</span>
                     </div>
                     <div className="text-right">
-                      <span className="text-sm text-gray-500">{format(new Date(match.date), 'MMM d')}</span>
+                      <span className="text-sm text-gray-500">{formatDate(match.date, isArabic, true)}</span>
                     </div>
                   </div>
                 ))}
                 {recentMatches.length === 0 && (
-                  <p className="text-gray-400 text-sm">No recent matches</p>
+                  <p className="text-gray-400 text-sm">{isArabic ? 'لا توجد نتائج حديثة' : 'No recent matches'}</p>
                 )}
               </div>
             </div>
@@ -146,7 +147,9 @@ export default function Matches() {
                 <ChevronLeft className="w-5 h-5" />
               </button>
               <h2 className="text-2xl font-bold text-[#0a1628] min-w-[200px] text-center">
-                {format(currentMonth, 'MMMM yyyy')}
+                {isArabic
+                  ? `${['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'][currentMonth.getMonth()]} ${currentMonth.getFullYear()}`
+                  : currentMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
               </h2>
               <button 
                 onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}

@@ -167,7 +167,7 @@ export default function Standings() {
                                 {team.team}
                                 {isCeramica && (
                                   <span className="ml-2 text-[10px] bg-[#FFB81C] text-[#1B2852] px-1.5 py-0.5 rounded font-black uppercase">
-                                    Our Club
+                                    {isArabic ? 'ناديك' : 'Our Club'}
                                   </span>
                                 )}
                               </span>
@@ -215,11 +215,11 @@ export default function Standings() {
               <div className="p-5 bg-black/20 border-t border-white/10 flex flex-wrap gap-6 text-sm">
                 <div className="flex items-center gap-2">
                   <div className="w-3 h-8 bg-[#FFB81C] rounded-full" />
-                  <span className="text-white/60">Top 3 / Champions</span>
+                  <span className="text-white/60">{isArabic ? 'أفضل 3 / بطولة' : 'Top 3 / Champions'}</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="w-3 h-8 bg-red-500 rounded-full" />
-                  <span className="text-white/60">Relegation Zone</span>
+                  <span className="text-white/60">{isArabic ? 'منطقة الهبوط' : 'Relegation Zone'}</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="w-4 h-4 bg-[#FFB81C]/20 rounded border border-[#FFB81C]/40" />
@@ -227,7 +227,7 @@ export default function Standings() {
                 </div>
                 <div className="ml-auto flex items-center gap-1 text-white/30 text-xs">
                   <RefreshCw className="w-3 h-3" />
-                  Source: API-Football (api-sports.io)
+                  {isArabic ? 'المصدر: API-Football' : 'Source: API-Football (api-sports.io)'}
                 </div>
               </div>
             </motion.div>

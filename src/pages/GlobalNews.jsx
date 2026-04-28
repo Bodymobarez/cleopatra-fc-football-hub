@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { createPageUrl, ensureArray } from '@/utils';
 import { motion } from 'framer-motion';
-import { format } from 'date-fns';
+import { formatDate, getCategoryLabel } from '@/utils';
 import { Clock, Eye, Search, Globe, Trophy } from 'lucide-react';
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -146,7 +146,7 @@ export default function GlobalNews() {
                         />
                         <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
                         <span className={`absolute top-4 left-4 px-3 py-1 rounded-full text-xs font-bold ${categoryColors[article.category] || 'bg-gray-500 text-white'}`}>
-                          {article.category?.replace(/_/g, ' ').toUpperCase()}
+                          {getCategoryLabel(article.category, isArabic)}
                         </span>
                       </div>
                       <div className="p-6">
@@ -157,7 +157,7 @@ export default function GlobalNews() {
                         <div className="flex items-center justify-between text-xs text-gray-400">
                           <span className="flex items-center gap-1">
                             <Clock className="w-3 h-3" />
-                            {article.published_at ? format(new Date(article.published_at), 'MMM d, yyyy') : (isArabic ? 'حديثاً' : 'Recent')}
+                            {formatDate(article.published_at, isArabic)}
                           </span>
                           {article.views > 0 && (
                             <span className="flex items-center gap-1">

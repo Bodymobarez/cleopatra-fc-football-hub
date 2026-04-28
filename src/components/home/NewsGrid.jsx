@@ -3,8 +3,8 @@ import { Link } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
 import { motion } from 'framer-motion';
 import { Clock, ChevronRight, Eye } from 'lucide-react';
-import { format } from 'date-fns';
 import { useLanguage } from '@/components/LanguageContext';
+import { formatDate, getCategoryLabel } from '@/utils';
 
 const categoryColors = {
   club_news:       'bg-[#FFB81C] text-[#1B2852]',
@@ -23,19 +23,6 @@ const categoryColors = {
   african_football:'bg-green-600 text-white',
 };
 
-const categoryLabelAr = {
-  club_news:       'أخبار النادي',
-  match_report:    'تقرير مباراة',
-  transfers:       'الانتقالات',
-  injuries:        'الإصابات',
-  analysis:        'تحليل',
-  global_football: 'كرة دولية',
-  premier_league:  'دوري إنجليزي',
-  la_liga:         'دوري إسباني',
-  champions_league:'دوري الأبطال',
-  world_cup:       'كأس العالم',
-  egyptian_league: 'دوري مصري',
-};
 
 export default function NewsGrid({ news = [], title, showViewAll = true }) {
   const { isArabic } = useLanguage();
@@ -47,11 +34,7 @@ export default function NewsGrid({ news = [], title, showViewAll = true }) {
 
   if (news.length === 0) return null;
 
-  const categoryLabel = (cat) => {
-    if (!cat) return '';
-    if (isArabic) return categoryLabelAr[cat] || cat.replace(/_/g, ' ');
-    return cat.replace(/_/g, ' ').toUpperCase();
-  };
+  const categoryLabel = (cat) => getCategoryLabel(cat, isArabic);
 
   return (
     <section className="py-16 bg-gradient-to-b from-gray-50 to-white">
@@ -93,7 +76,7 @@ export default function NewsGrid({ news = [], title, showViewAll = true }) {
                     <div className="flex items-center gap-4 text-white/60 text-sm">
                       <span className="flex items-center gap-1">
                         <Clock className="w-4 h-4" />
-                        {featuredNews.published_at ? format(new Date(featuredNews.published_at), 'MMM d, yyyy') : (isArabic ? 'حديثاً' : 'Recent')}
+                        {formatDate(featuredNews.published_at, isArabic)}
                       </span>
                       {featuredNews.views > 0 && (
                         <span className="flex items-center gap-1">
@@ -138,7 +121,7 @@ export default function NewsGrid({ news = [], title, showViewAll = true }) {
                     <div className="flex items-center gap-3 text-gray-400 text-xs mt-2">
                       <span className="flex items-center gap-1">
                         <Clock className="w-3 h-3" />
-                        {article.published_at ? format(new Date(article.published_at), 'MMM d') : (isArabic ? 'حديثاً' : 'Recent')}
+                        {formatDate(article.published_at, isArabic, true)}
                       </span>
                     </div>
                   </div>

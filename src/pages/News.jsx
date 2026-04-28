@@ -4,11 +4,11 @@ import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { createPageUrl, ensureArray } from '@/utils';
 import { motion } from 'framer-motion';
-import { format } from 'date-fns';
-import { Clock, Eye, Search, Filter, ChevronRight, Tag } from 'lucide-react';
+import { Clock, Eye, Search, ChevronRight } from 'lucide-react';
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useLanguage } from '@/components/LanguageContext';
+import { formatDate, getCategoryLabel } from '@/utils';
 
 const categoryColors = {
   club_news: 'bg-[#d4af37] text-[#0a1628]',
@@ -141,7 +141,7 @@ export default function News() {
                       <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent" />
                       <div className="absolute bottom-0 left-0 right-0 p-8">
                         <span className={`inline-block px-3 py-1 rounded-full text-xs font-bold mb-4 ${categoryColors[article.category] || 'bg-gray-500 text-white'}`}>
-                          {article.category?.replace(/_/g, ' ').toUpperCase()}
+                          {getCategoryLabel(article.category, isArabic)}
                         </span>
                         <h3 className="text-2xl font-bold text-white mb-3 group-hover:text-[#d4af37] transition-colors">
                           {article.title}
@@ -149,7 +149,7 @@ export default function News() {
                         <div className="flex items-center gap-4 text-white/60 text-sm">
                           <span className="flex items-center gap-1">
                             <Clock className="w-4 h-4" />
-                            {article.published_at ? format(new Date(article.published_at), 'MMM d, yyyy') : 'Recent'}
+                            {formatDate(article.published_at, isArabic)}
                           </span>
                           {article.views > 0 && (
                             <span className="flex items-center gap-1">
@@ -207,7 +207,7 @@ export default function News() {
                       </div>
                       <div className="p-6">
                         <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold mb-3 ${categoryColors[article.category] || 'bg-gray-500 text-white'}`}>
-                          {article.category?.replace(/_/g, ' ').toUpperCase()}
+                          {getCategoryLabel(article.category, isArabic)}
                         </span>
                         <h3 className="font-bold text-[#0a1628] text-lg mb-2 line-clamp-2 group-hover:text-[#1e3a5f] transition-colors">
                           {article.title}
@@ -216,7 +216,7 @@ export default function News() {
                         <div className="flex items-center justify-between text-xs text-gray-400">
                           <span className="flex items-center gap-1">
                             <Clock className="w-3 h-3" />
-                            {article.published_at ? format(new Date(article.published_at), 'MMM d') : (isArabic ? 'حديثاً' : 'Recent')}
+                            {formatDate(article.published_at, isArabic, true)}
                           </span>
                           <span className="flex items-center gap-1 text-[#d4af37] font-medium">
                             {isArabic ? 'اقرأ المزيد' : 'Read More'} <ChevronRight className="w-3 h-3" />
