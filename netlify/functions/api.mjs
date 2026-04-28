@@ -666,7 +666,7 @@ syncRouter.post('/topscorers', async (_req, res) => {
       [title, excerpt, `EGYPTIAN PREMIER LEAGUE ${SEASON}\n\nLATEST STANDINGS\n\n${rows}`,
        'league', false, false, false, 'published',
        'https://images.unsplash.com/photo-1431324155629-1a6deb1dec8d?w=800',
-       new Date().toISOString(), JSON.stringify(['standings', 'EPL', SEASON]), 0],
+       new Date().toISOString(), ['standings', 'EPL', SEASON], 0],
     );
     res.json({ synced: true, season: SEASON, updatedAt: new Date().toISOString() });
   } catch (err) {
@@ -779,7 +779,7 @@ The match was played at ${venue} in Round ${round.replace('Round ', '')} of the 
          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
         [title, excerpt, content, 'match_report', true,
          result === 'WIN', false, 'published', img,
-         matchDate.toISOString(), JSON.stringify(['match report', result.toLowerCase(), 'Ceramica', SEASON, opponent]), 0],
+         matchDate.toISOString(), ['match report', result.toLowerCase(), 'Ceramica', SEASON, opponent], 0],
       );
       articlesCreated.push(title);
     }
@@ -799,7 +799,7 @@ The match was played at ${venue} in Round ${round.replace('Round ', '')} of the 
          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
         [title, excerpt, content, 'preview', true, false, false, 'published',
          matchImages[3], matchDate.toISOString(),
-         JSON.stringify(['preview', 'upcoming', 'Ceramica', SEASON, opponent]), 0],
+         ['preview', 'upcoming', 'Ceramica', SEASON, opponent], 0],
       );
       articlesCreated.push(title);
     }
@@ -902,7 +902,7 @@ Head-to-head record and team news will be available closer to kick-off.
         [title, excerpt, content, 'preview', true, false, false, 'published',
          previewImages[idx % previewImages.length],
          new Date().toISOString(),
-         JSON.stringify(['preview', 'upcoming', 'Ceramica', SEASON, opponent, round]), 0],
+         ['preview', 'upcoming', 'Ceramica', SEASON, opponent, round], 0],
       );
 
       synced.push({ match: `${m.homeName} vs ${m.awayName}`, date: matchDate.toISOString(), venue: venueStr, round });
