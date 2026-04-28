@@ -1,13 +1,15 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Trophy, Target, Heart, Users, MapPin, Calendar } from 'lucide-react';
+import { useLanguage } from '@/components/LanguageContext';
 
 export default function About() {
+  const { t, isArabic } = useLanguage();
   const stats = [
-    { icon: Calendar, label: 'Founded', value: '2006' },
-    { icon: MapPin, label: 'Location', value: 'Suez, Egypt' },
-    { icon: Trophy, label: 'League Titles', value: '0' },
-    { icon: Users, label: 'Squad Size', value: '25+' }
+    { icon: Calendar, label: isArabic ? 'التأسيس' : 'Founded', value: '2006' },
+    { icon: MapPin, label: isArabic ? 'المقر' : 'Location', value: isArabic ? 'السويس، مصر' : 'Suez, Egypt' },
+    { icon: Trophy, label: isArabic ? 'ألقاب الدوري' : 'League Titles', value: '0' },
+    { icon: Users, label: isArabic ? 'عدد اللاعبين' : 'Squad Size', value: '25+' }
   ];
 
   return (
@@ -35,10 +37,10 @@ export default function About() {
               className="h-32 w-auto mx-auto mb-8"
             />
             <h1 className="text-5xl md:text-7xl font-black text-white mb-4">
-              About <span className="text-[#FFB81C]">Our Club</span>
+              {isArabic ? 'عن' : 'About'} <span className="text-[#FFB81C]">{isArabic ? 'ناديناً' : 'Our Club'}</span>
             </h1>
             <p className="text-white/80 text-xl max-w-3xl mx-auto">
-              Ceramica Cleopatra FC - A Rising Force in Egyptian Football
+              {isArabic ? 'سيراميكا كليوباترا - قوة صاعدة في كرة القدم المصرية' : 'Ceramica Cleopatra FC - A Rising Force in Egyptian Football'}
             </p>
           </motion.div>
         </div>
@@ -79,17 +81,23 @@ export default function About() {
             >
               <h2 className="text-4xl font-black text-[#1B2852] mb-6 flex items-center gap-3">
                 <div className="w-1.5 h-12 bg-[#FFB81C] rounded-full" />
-                Our History
+                {t('about.history','Our History')}
               </h2>
               <div className="space-y-4 text-gray-600 leading-relaxed">
                 <p>
-                  Ceramica Cleopatra FC was founded in 2006 in Suez, Egypt. The club has grown to become a competitive force in Egyptian football, competing in the Egyptian Premier League, the top tier of Egyptian football.
+                  {isArabic
+                    ? 'تأسس نادي سيراميكا كليوباترا عام 2006 في السويس، مصر. نما النادي ليصبح قوة تنافسية في كرة القدم المصرية يشارك في الدوري المصري الممتاز.'
+                    : 'Ceramica Cleopatra FC was founded in 2006 in Suez, Egypt. The club has grown to become a competitive force in Egyptian football, competing in the Egyptian Premier League.'}
                 </p>
                 <p>
-                  Named after the Cleopatra Ceramics factory, the club represents the city of Suez with pride and passion. Over the years, Ceramica Cleopatra has built a reputation for developing talented players and playing attractive, attacking football.
+                  {isArabic
+                    ? 'سُمّي النادي نسبةً لمصنع سيراميكا كليوباترا، ويمثّل مدينة السويس بفخر وشغف. بنى النادي على مر السنين سمعة طيبة في تطوير اللاعبين الموهوبين ولعب كرة القدم الهجومية الجذابة.'
+                    : 'Named after the Cleopatra Ceramics factory, the club represents Suez with pride and passion. Ceramica Cleopatra has built a reputation for developing talented players and playing attractive football.'}
                 </p>
                 <p>
-                  The club plays its home matches at Suez Stadium, where passionate supporters create an electric atmosphere that inspires the team to achieve great performances.
+                  {isArabic
+                    ? 'يلعب النادي مبارياته الرسمية في ملعب السويس، حيث يخلق الجماهير المتحمسة أجواءً كهربائية تلهم الفريق لتحقيق أداءات رائعة.'
+                    : 'The club plays its home matches at Suez Stadium, where passionate supporters create an electric atmosphere that inspires the team to achieve great performances.'}
                 </p>
               </div>
             </motion.div>
@@ -121,9 +129,11 @@ export default function About() {
               className="bg-gradient-to-br from-[#1B2852] to-[#C8102E] rounded-2xl p-8 text-white"
             >
               <Target className="w-12 h-12 text-[#FFB81C] mb-6" />
-              <h3 className="text-3xl font-bold mb-4">Our Vision</h3>
+              <h3 className="text-3xl font-bold mb-4">{t('about.vision','Our Vision')}</h3>
               <p className="text-white/80 leading-relaxed">
-                To become one of Egypt's leading football clubs, competing at the highest level domestically and continentally, while developing world-class talent and maintaining strong community connections.
+                {isArabic
+                  ? 'أن نصبح أحد أبرز أندية كرة القدم في مصر، المنافسة على أعلى المستويات محلياً وقارياً، مع تطوير المواهب وتعزيز الروابط المجتمعية.'
+                  : "To become one of Egypt's leading football clubs, competing at the highest level domestically and continentally, while developing world-class talent and maintaining strong community connections."}
               </p>
             </motion.div>
 
@@ -135,9 +145,11 @@ export default function About() {
               className="bg-gradient-to-br from-[#FFB81C] to-[#f5a815] rounded-2xl p-8 text-[#1B2852]"
             >
               <Heart className="w-12 h-12 mb-6" />
-              <h3 className="text-3xl font-bold mb-4">Our Mission</h3>
+              <h3 className="text-3xl font-bold mb-4">{t('about.mission','Our Mission')}</h3>
               <p className="opacity-90 leading-relaxed">
-                To inspire our community through passionate, attacking football, nurture young talent, uphold the highest sporting values, and represent Suez with pride on every pitch we play.
+                {isArabic
+                  ? 'إلهام مجتمعنا من خلال كرة القدم الهجومية المشبعة بالشغف، وتنمية المواهب الشابة، والتمسك بأعلى القيم الرياضية، وتمثيل السويس بفخر في كل ملعب نلعب فيه.'
+                  : 'To inspire our community through passionate, attacking football, nurture young talent, uphold the highest sporting values, and represent Suez with pride on every pitch we play.'}
               </p>
             </motion.div>
           </div>
@@ -153,18 +165,18 @@ export default function About() {
             viewport={{ once: true }}
             className="text-center mb-12"
           >
-            <h2 className="text-4xl font-black text-[#1B2852] mb-4">Our Values</h2>
-            <p className="text-gray-600 text-lg">The principles that guide everything we do</p>
+            <h2 className="text-4xl font-black text-[#1B2852] mb-4">{t('about.values','Our Values')}</h2>
+            <p className="text-gray-600 text-lg">{isArabic ? 'المبادئ التي تقود كل ما نفعله' : 'The principles that guide everything we do'}</p>
           </motion.div>
 
           <div className="grid md:grid-cols-3 gap-6">
             {[
-              { title: 'Excellence', description: 'Striving for the highest standards in every aspect' },
-              { title: 'Unity', description: 'Building a strong, cohesive team on and off the pitch' },
-              { title: 'Passion', description: 'Playing with heart and determination in every match' },
-              { title: 'Integrity', description: 'Upholding fair play and sporting ethics' },
-              { title: 'Development', description: 'Nurturing talent and continuous improvement' },
-              { title: 'Community', description: 'Connecting with and inspiring our supporters' }
+              { title: isArabic ? 'التميز' : 'Excellence', description: isArabic ? 'السعي نحو أعلى المستويات في كل جانب' : 'Striving for the highest standards in every aspect' },
+              { title: isArabic ? 'الوحدة' : 'Unity', description: isArabic ? 'بناء فريق متماسك داخل الملعب وخارجه' : 'Building a strong, cohesive team on and off the pitch' },
+              { title: isArabic ? 'الشغف' : 'Passion', description: isArabic ? 'اللعب بقلب وعزيمة في كل مباراة' : 'Playing with heart and determination in every match' },
+              { title: isArabic ? 'النزاهة' : 'Integrity', description: isArabic ? 'الالتزام باللعب النظيف والأخلاق الرياضية' : 'Upholding fair play and sporting ethics' },
+              { title: isArabic ? 'التطوير' : 'Development', description: isArabic ? 'رعاية المواهب والتحسين المستمر' : 'Nurturing talent and continuous improvement' },
+              { title: isArabic ? 'المجتمع' : 'Community', description: isArabic ? 'التواصل مع جماهيرنا وإلهامهم' : 'Connecting with and inspiring our supporters' }
             ].map((value, index) => (
               <motion.div
                 key={value.title}

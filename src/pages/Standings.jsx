@@ -1,4 +1,5 @@
 import React from 'react';
+import { useLanguage } from '@/components/LanguageContext';
 import { ceramicaCleopatra } from '@/api/ceramicaCleopatraClient';
 import { useQuery } from '@tanstack/react-query';
 import { ensureArray } from '@/utils';
@@ -26,6 +27,7 @@ function FormBadge({ form }) {
 }
 
 export default function Standings() {
+  const { t, isArabic } = useLanguage();
   const { data: standings = [], isLoading, refetch } = useQuery({
     queryKey: ['standings'],
     queryFn: () => ceramicaCleopatra.entities.Standing.list('-created_date', 1),
@@ -49,21 +51,21 @@ export default function Standings() {
             <div className="inline-flex items-center gap-2 bg-[#FFB81C]/20 border border-[#FFB81C]/30 rounded-full px-5 py-2 mb-6">
               <Trophy className="w-4 h-4 text-[#FFB81C]" />
               <span className="text-[#FFB81C] text-sm font-bold uppercase tracking-wider">
-                Egyptian Premier League
+                {isArabic ? 'الدوري المصري الممتاز' : 'Egyptian Premier League'}
               </span>
             </div>
             <h1 className="text-5xl md:text-7xl font-black text-white mb-4">
-              League <span className="text-[#FFB81C]">Standings</span>
+              {isArabic ? 'جدول' : 'League'} <span className="text-[#FFB81C]">{isArabic ? 'الترتيب' : 'Standings'}</span>
             </h1>
             <p className="text-white/50 text-lg">
-              {current?.competition || 'Egyptian Premier League'} &mdash; {current?.season || '2024/25 Season'}
+              {current?.competition || (isArabic ? 'الدوري المصري الممتاز' : 'Egyptian Premier League')} &mdash; {current?.season || '2025/26 Season'}
             </p>
             <button
               onClick={() => refetch()}
               className="mt-4 inline-flex items-center gap-2 text-white/40 hover:text-white/70 text-sm transition-colors"
             >
               <RefreshCw className="w-3.5 h-3.5" />
-              Refresh
+              {isArabic ? 'تحديث' : 'Refresh'}
             </button>
           </motion.div>
         </div>
@@ -83,7 +85,7 @@ export default function Standings() {
           ) : teams.length === 0 ? (
             <div className="text-center py-24">
               <Trophy className="w-20 h-20 text-white/20 mx-auto mb-6" />
-              <p className="text-white/40 text-xl mb-4">No standings data available</p>
+              <p className="text-white/40 text-xl mb-4">{isArabic ? 'لا تتوفر بيانات الترتيب' : 'No standings data available'}</p>
               <p className="text-white/30 text-sm">
                 Go to <Link to="/Admin" className="text-[#FFB81C] underline">Admin</Link> → "جدول الدوري" → Sync Now
               </p>
@@ -99,16 +101,16 @@ export default function Standings() {
                   <TableHeader>
                     <TableRow className="bg-[#1B2852]/80 border-white/10 hover:bg-[#1B2852]/80">
                       <TableHead className="text-[#FFB81C] font-bold w-12">#</TableHead>
-                      <TableHead className="text-[#FFB81C] font-bold">Club</TableHead>
-                      <TableHead className="text-white/70 font-semibold text-center">P</TableHead>
-                      <TableHead className="text-white/70 font-semibold text-center">W</TableHead>
-                      <TableHead className="text-white/70 font-semibold text-center">D</TableHead>
-                      <TableHead className="text-white/70 font-semibold text-center">L</TableHead>
-                      <TableHead className="text-white/70 font-semibold text-center">GF</TableHead>
-                      <TableHead className="text-white/70 font-semibold text-center">GA</TableHead>
-                      <TableHead className="text-white/70 font-semibold text-center">GD</TableHead>
-                      <TableHead className="text-white/70 font-semibold text-center hidden md:table-cell">Form</TableHead>
-                      <TableHead className="text-[#FFB81C] font-bold text-center">Pts</TableHead>
+                      <TableHead className="text-[#FFB81C] font-bold">{isArabic ? 'النادي' : 'Club'}</TableHead>
+                      <TableHead className="text-white/70 font-semibold text-center" title={isArabic ? 'لعب' : 'Played'}>{isArabic ? 'ل' : 'P'}</TableHead>
+                      <TableHead className="text-white/70 font-semibold text-center" title={isArabic ? 'فاز' : 'Won'}>{isArabic ? 'ف' : 'W'}</TableHead>
+                      <TableHead className="text-white/70 font-semibold text-center" title={isArabic ? 'تعادل' : 'Drawn'}>{isArabic ? 'ت' : 'D'}</TableHead>
+                      <TableHead className="text-white/70 font-semibold text-center" title={isArabic ? 'خسر' : 'Lost'}>{isArabic ? 'خ' : 'L'}</TableHead>
+                      <TableHead className="text-white/70 font-semibold text-center" title={isArabic ? 'أهداف له' : 'Goals For'}>{isArabic ? 'له' : 'GF'}</TableHead>
+                      <TableHead className="text-white/70 font-semibold text-center" title={isArabic ? 'أهداف عليه' : 'Goals Against'}>{isArabic ? 'عليه' : 'GA'}</TableHead>
+                      <TableHead className="text-white/70 font-semibold text-center" title={isArabic ? 'الفارق' : 'Goal Diff'}>{isArabic ? 'ف.أ' : 'GD'}</TableHead>
+                      <TableHead className="text-white/70 font-semibold text-center hidden md:table-cell">{isArabic ? 'الشكل' : 'Form'}</TableHead>
+                      <TableHead className="text-[#FFB81C] font-bold text-center">{isArabic ? 'نقاط' : 'Pts'}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>

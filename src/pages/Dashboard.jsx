@@ -3,6 +3,7 @@ import { useAuth } from '@/lib/AuthContext';
 import { ceramicaCleopatra } from '@/api/ceramicaCleopatraClient';
 import { useQuery } from '@tanstack/react-query';
 import { ensureArray } from '@/utils';
+import { useLanguage } from '@/components/LanguageContext';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { User, Crown, Calendar, Newspaper, Trophy, LogOut, Edit2, Save, Lock } from 'lucide-react';
@@ -32,6 +33,7 @@ export default function Dashboard() {
 
 function DashboardContent() {
   const { user, subscription, logout, loadMe } = useAuth();
+  const { isArabic } = useLanguage();
   const [editMode, setEditMode] = useState(false);
   const [form, setForm]         = useState({ full_name: user?.full_name || '', phone: user?.phone || '' });
   const [pwForm, setPwForm]     = useState({ current_password:'', new_password:'' });
@@ -91,7 +93,7 @@ function DashboardContent() {
             </div>
           </div>
           <button onClick={logout} className="flex items-center gap-2 text-red-400 hover:text-red-300 text-sm bg-red-500/10 hover:bg-red-500/20 px-4 py-2 rounded-xl transition-colors">
-            <LogOut className="w-4 h-4" /> Sign Out
+            <LogOut className="w-4 h-4" /> {isArabic ? 'خروج' : 'Sign Out'}
           </button>
         </div>
 
@@ -102,12 +104,16 @@ function DashboardContent() {
             <div className={`bg-gradient-to-br ${planGrad} rounded-2xl p-6 relative overflow-hidden`}>
               <div className="absolute top-0 right-0 w-40 h-40 bg-white/10 rounded-full -translate-y-10 translate-x-10" />
               <Crown className="w-6 h-6 text-white/60 mb-3" />
-              <div className="text-white/70 text-sm mb-1">Current Membership</div>
-              <div className="text-white font-black text-2xl mb-1">{subscription?.plan_name || 'Free Fan'}</div>
-              <div className="text-white/60 text-sm">{subscription?.name_ar || 'مشجع مجاني'}</div>
+              <div className="text-white/70 text-sm mb-1">{isArabic ? 'العضوية الحالية' : 'Current Membership'}</div>
+              <div className="text-white font-black text-2xl mb-1">
+                {isArabic ? (subscription?.name_ar || 'مشجع مجاني') : (subscription?.plan_name || 'Free Fan')}
+              </div>
+              <div className="text-white/60 text-sm">
+                {isArabic ? (subscription?.plan_name || 'Free Fan') : (subscription?.name_ar || 'مشجع مجاني')}
+              </div>
               {expiresAt && (
                 <div className="mt-3 text-white/60 text-xs">
-                  Expires: <strong className="text-white">{expiresAt.toLocaleDateString()}</strong>
+                  {isArabic ? 'ينتهي:' : 'Expires:'} <strong className="text-white">{expiresAt.toLocaleDateString()}</strong>
                 </div>
               )}
               {!subscription && (
@@ -119,7 +125,7 @@ function DashboardContent() {
 
             {/* Latest News */}
             <div className="bg-gray-900 border border-white/10 rounded-2xl p-6">
-              <h3 className="text-white font-black mb-4 flex items-center gap-2"><Newspaper className="w-4 h-4 text-[#FFB81C]" /> Latest News</h3>
+              <h3 className="text-white font-black mb-4 flex items-center gap-2"><Newspaper className="w-4 h-4 text-[#FFB81C]" /> {isArabic ? 'آخر الأخبار' : 'Latest News'}</h3>
               <div className="space-y-3">
                 {latestNews.map(n => (
                   <div key={n.id} className="flex items-start gap-3 p-3 bg-white/5 rounded-xl hover:bg-white/8 transition-colors">
@@ -140,7 +146,7 @@ function DashboardContent() {
             {/* Next Match */}
             {nextMatch && (
               <div className="bg-gray-900 border border-white/10 rounded-2xl p-5">
-                <h3 className="text-white font-black mb-4 flex items-center gap-2"><Calendar className="w-4 h-4 text-[#FFB81C]" /> Next Match</h3>
+                <h3 className="text-white font-black mb-4 flex items-center gap-2"><Calendar className="w-4 h-4 text-[#FFB81C]" /> {isArabic ? 'المباراة القادمة' : 'Next Match'}</h3>
                 <div className="text-center">
                   <div className="flex items-center justify-between mb-3">
                     <div className="text-center">
@@ -162,46 +168,48 @@ function DashboardContent() {
             {/* Edit Profile */}
             <div className="bg-gray-900 border border-white/10 rounded-2xl p-5">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-white font-black flex items-center gap-2"><User className="w-4 h-4 text-[#FFB81C]" /> Profile</h3>
+                <h3 className="text-white font-black flex items-center gap-2"><User className="w-4 h-4 text-[#FFB81C]" /> {isArabic ? 'الملف الشخصي' : 'Profile'}</h3>
                 <button onClick={() => setEditMode(!editMode)} className="text-white/40 hover:text-white">
                   <Edit2 className="w-4 h-4" />
                 </button>
               </div>
               {editMode ? (
                 <div className="space-y-3">
-                  <Input value={form.full_name} onChange={e => setForm(p => ({...p, full_name: e.target.value}))} placeholder="Full name"
+                  <Input value={form.full_name} onChange={e => setForm(p => ({...p, full_name: e.target.value}))} placeholder={isArabic ? 'الاسم الكامل' : 'Full name'}
                     className="bg-white/5 border-white/10 text-white rounded-xl text-sm" />
-                  <Input value={form.phone} onChange={e => setForm(p => ({...p, phone: e.target.value}))} placeholder="Phone"
+                  <Input value={form.phone} onChange={e => setForm(p => ({...p, phone: e.target.value}))} placeholder={isArabic ? 'الهاتف' : 'Phone'}
                     className="bg-white/5 border-white/10 text-white rounded-xl text-sm" />
                   <div className="flex gap-2">
-                    <Button onClick={() => setEditMode(false)} variant="outline" className="flex-1 border-white/10 text-white/50 rounded-xl text-sm h-9">Cancel</Button>
+                    <Button onClick={() => setEditMode(false)} variant="outline" className="flex-1 border-white/10 text-white/50 rounded-xl text-sm h-9">{isArabic ? 'إلغاء' : 'Cancel'}</Button>
                     <Button onClick={saveProfile} disabled={saving} className="flex-1 bg-[#FFB81C] text-[#1B2852] font-bold rounded-xl text-sm h-9">
-                      {saving ? '…' : <><Save className="w-3 h-3 mr-1" />Save</>}
+                      {saving ? '…' : <><Save className="w-3 h-3 mr-1" />{isArabic ? 'حفظ' : 'Save'}</>}
                     </Button>
                   </div>
                 </div>
               ) : (
                 <div className="space-y-2 text-sm text-white/60">
-                  <div><span className="text-white/30">Name: </span>{user?.full_name}</div>
-                  <div><span className="text-white/30">Email: </span>{user?.email}</div>
-                  <div><span className="text-white/30">Phone: </span>{user?.phone || 'Not set'}</div>
-                  <div><span className="text-white/30">Member since: </span>{user?.created_at ? new Date(user.created_at).toLocaleDateString() : ''}</div>
+                  <div><span className="text-white/30">{isArabic ? 'الاسم: ' : 'Name: '}</span>{user?.full_name}</div>
+                  <div><span className="text-white/30">{isArabic ? 'البريد: ' : 'Email: '}</span>{user?.email}</div>
+                  <div><span className="text-white/30">{isArabic ? 'الهاتف: ' : 'Phone: '}</span>{user?.phone || (isArabic ? 'غير محدد' : 'Not set')}</div>
+                  <div><span className="text-white/30">{isArabic ? 'عضو منذ: ' : 'Member since: '}</span>{user?.created_at ? new Date(user.created_at).toLocaleDateString() : ''}</div>
                 </div>
               )}
             </div>
 
             {/* Change Password */}
             <div className="bg-gray-900 border border-white/10 rounded-2xl p-5">
-              <h3 className="text-white font-black mb-4 flex items-center gap-2"><Lock className="w-4 h-4 text-[#FFB81C]" /> Change Password</h3>
+              <h3 className="text-white font-black mb-4 flex items-center gap-2"><Lock className="w-4 h-4 text-[#FFB81C]" /> {isArabic ? 'تغيير كلمة المرور' : 'Change Password'}</h3>
               <div className="space-y-3">
-                <Input type="password" placeholder="Current password" value={pwForm.current_password}
+                <Input type="password" placeholder={isArabic ? 'كلمة المرور الحالية' : 'Current password'} value={pwForm.current_password}
+                  autoComplete="current-password"
                   onChange={e => setPwForm(p => ({...p, current_password: e.target.value}))}
                   className="bg-white/5 border-white/10 text-white rounded-xl text-sm" />
-                <Input type="password" placeholder="New password (6+ chars)" value={pwForm.new_password}
+                <Input type="password" placeholder={isArabic ? 'كلمة المرور الجديدة (٦+ حروف)' : 'New password (6+ chars)'} value={pwForm.new_password}
+                  autoComplete="new-password"
                   onChange={e => setPwForm(p => ({...p, new_password: e.target.value}))}
                   className="bg-white/5 border-white/10 text-white rounded-xl text-sm" />
                 <Button onClick={changePassword} disabled={saving} className="w-full bg-gradient-to-r from-[#1B2852] to-[#C8102E] text-white font-bold rounded-xl text-sm h-9">
-                  Update Password
+                  {isArabic ? 'تحديث كلمة المرور' : 'Update Password'}
                 </Button>
               </div>
             </div>

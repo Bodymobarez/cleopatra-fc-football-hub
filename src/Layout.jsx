@@ -3,6 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
 import { ceramicaCleopatra } from '@/api/ceramicaCleopatraClient';
 import { useAuth } from '@/lib/AuthContext';
+import { useLanguage } from '@/components/LanguageContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Menu, X, Home, Users, Calendar, Newspaper, Trophy, 
@@ -17,40 +18,43 @@ import {
   DropdownMenuSeparator
 } from "@/components/ui/dropdown-menu";
 
-const navigation = [
-  { name: 'Home', href: 'Home', icon: Home },
-  { 
-    name: 'Club', 
-    icon: Shield,
-    children: [
-      { name: 'About', href: 'About' },
-      { name: 'Squad', href: 'Squad' },
-      { name: 'Academy', href: 'Academy' },
-    ]
-  },
-  { name: 'Matches', href: 'Matches', icon: Calendar },
-  { name: 'News', href: 'News', icon: Newspaper },
-  { 
-    name: 'Global Football', 
-    icon: Globe,
-    children: [
-      { name: 'All News', href: 'GlobalNews' },
-      { name: 'Premier League', href: 'LeagueNews?league=premier_league' },
-      { name: 'La Liga', href: 'LeagueNews?league=la_liga' },
-      { name: 'Champions League', href: 'LeagueNews?league=champions_league' },
-      { name: 'World Cup', href: 'LeagueNews?league=world_cup' },
-    ]
-  },
-  { name: 'Standings', href: 'Standings', icon: Trophy },
-  { name: 'Media', href: 'Media', icon: Play },
-  { name: 'Fan Zone', href: 'FanZone', icon: MessageCircle },
-];
+// Navigation is built dynamically in the component using t() below
 
 export default function Layout({ children, currentPageName }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const location = useLocation();
   const { user, isAdmin, logout } = useAuth();
+  const { language, toggleLanguage, t, isArabic } = useLanguage();
+
+  const navigation = [
+    { name: t('nav.home', 'Home'), href: 'Home', icon: Home },
+    {
+      name: t('nav.club', 'Club'),
+      icon: Shield,
+      children: [
+        { name: t('nav.about', 'About'),   href: 'About' },
+        { name: t('nav.squad', 'Squad'),   href: 'Squad' },
+        { name: t('nav.academy','Academy'),href: 'Academy' },
+      ]
+    },
+    { name: t('nav.matches', 'Matches'),  href: 'Matches',  icon: Calendar },
+    { name: t('nav.news', 'News'),        href: 'News',     icon: Newspaper },
+    {
+      name: t('nav.global_football', 'Global Football'),
+      icon: Globe,
+      children: [
+        { name: t('nav.all_news', 'All News'),                    href: 'GlobalNews' },
+        { name: t('nav.premier_league', 'Premier League'),        href: 'LeagueNews?league=premier_league' },
+        { name: t('nav.la_liga', 'La Liga'),                      href: 'LeagueNews?league=la_liga' },
+        { name: t('nav.champions_league', 'Champions League'),    href: 'LeagueNews?league=champions_league' },
+        { name: t('nav.world_cup', 'World Cup'),                  href: 'LeagueNews?league=world_cup' },
+      ]
+    },
+    { name: t('nav.standings', 'Standings'), href: 'Standings', icon: Trophy },
+    { name: t('nav.media', 'Media'),         href: 'Media',     icon: Play },
+    { name: t('nav.fan_zone', 'Fan Zone'),   href: 'FanZone',   icon: MessageCircle },
+  ];
 
   useEffect(() => {
     const handleScroll = () => {
@@ -123,6 +127,16 @@ export default function Layout({ children, currentPageName }) {
 
             {/* Right Actions */}
             <div className="flex items-center gap-3">
+              {/* Language Toggle */}
+              <button
+                onClick={toggleLanguage}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 transition-colors text-white text-sm font-bold"
+                title={isArabic ? 'Switch to English' : 'التبديل للعربية'}
+              >
+                <span className="text-base">{isArabic ? '🇬🇧' : '🇪🇬'}</span>
+                <span>{isArabic ? 'EN' : 'عربي'}</span>
+              </button>
+
               <button className="p-2 text-white/60 hover:text-white transition-colors">
                 <Search className="w-5 h-5" />
               </button>
@@ -144,34 +158,34 @@ export default function Layout({ children, currentPageName }) {
                     <DropdownMenuItem asChild>
                       <Link to={createPageUrl('Dashboard')} className="text-white/80 hover:text-white hover:bg-white/10">
                         <User className="w-4 h-4 mr-2" />
-                        My Dashboard
+                        {isArabic ? 'لوحتي' : 'My Dashboard'}
                       </Link>
                     </DropdownMenuItem>
                     {isAdmin && (
                       <DropdownMenuItem asChild>
                         <Link to={createPageUrl('AdminPanel')} className="text-white/80 hover:text-white hover:bg-white/10">
                           <Settings className="w-4 h-4 mr-2" />
-                          Admin Panel
+                          {isArabic ? 'لوحة الإدارة' : 'Admin Panel'}
                         </Link>
                       </DropdownMenuItem>
                     )}
-                    <DropdownMenuItem 
+                    <DropdownMenuItem
                       onClick={logout}
                       className="text-red-400 hover:text-red-300 hover:bg-white/10 cursor-pointer"
                     >
                       <LogOut className="w-4 h-4 mr-2" />
-                      Logout
+                      {t('nav.logout', 'Logout')}
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
               ) : (
                 <div className="hidden sm:flex items-center gap-2">
                   <Link to={createPageUrl('Login')} className="px-3 py-2 text-white/70 hover:text-white text-sm font-medium transition-colors">
-                    Sign In
+                    {isArabic ? 'دخول' : 'Sign In'}
                   </Link>
                   <Link to={createPageUrl('Register')} className="flex items-center gap-1.5 px-4 py-2 bg-[#FFB81C] text-[#1B2852] font-bold rounded-lg hover:bg-[#f5a815] transition-colors text-sm">
                     <User className="w-4 h-4" />
-                    Join Now
+                    {isArabic ? 'انضم الآن' : 'Join Now'}
                   </Link>
                 </div>
               )}
@@ -267,18 +281,26 @@ export default function Layout({ children, currentPageName }) {
                 className="h-20 w-auto mb-6"
               />
               <p className="text-white/50 text-sm leading-relaxed">
-                Official website of Ceramica Cleopatra Football Club. Your source for club news, fixtures, and global football coverage.
+                {isArabic
+                  ? 'الموقع الرسمي لنادي سيراميكا كليوباترا لكرة القدم. مصدرك لأخبار النادي والمباريات وكرة القدم العالمية.'
+                  : 'Official website of Ceramica Cleopatra Football Club. Your source for club news, fixtures, and global football coverage.'}
               </p>
             </div>
 
             {/* Quick Links */}
             <div>
-              <h4 className="font-bold text-lg mb-4">Quick Links</h4>
+              <h4 className="font-bold text-lg mb-4">{t('footer.quick_links','Quick Links')}</h4>
               <ul className="space-y-2">
-                {['Home', 'Squad', 'Matches', 'News', 'Media'].map((item) => (
-                  <li key={item}>
-                    <Link to={createPageUrl(item)} className="text-white/60 hover:text-[#FFB81C] transition-colors">
-                      {item}
+                {[
+                  { page: 'Home',    label: isArabic ? 'الرئيسية' : 'Home' },
+                  { page: 'Squad',   label: isArabic ? 'الفريق' : 'Squad' },
+                  { page: 'Matches', label: isArabic ? 'المباريات' : 'Matches' },
+                  { page: 'News',    label: isArabic ? 'الأخبار' : 'News' },
+                  { page: 'Media',   label: isArabic ? 'الوسائط' : 'Media' },
+                ].map(({ page, label }) => (
+                  <li key={page}>
+                    <Link to={createPageUrl(page)} className="text-white/60 hover:text-[#FFB81C] transition-colors">
+                      {label}
                     </Link>
                   </li>
                 ))}
@@ -287,9 +309,15 @@ export default function Layout({ children, currentPageName }) {
 
             {/* Leagues */}
             <div>
-              <h4 className="font-bold text-lg mb-4">Leagues</h4>
+              <h4 className="font-bold text-lg mb-4">{t('footer.leagues','Leagues')}</h4>
               <ul className="space-y-2">
-                {['Premier League', 'La Liga', 'Serie A', 'Bundesliga', 'Egyptian League'].map((item) => (
+                {[
+                  isArabic ? 'الدوري الإنجليزي' : 'Premier League',
+                  isArabic ? 'الدوري الإسباني' : 'La Liga',
+                  isArabic ? 'الدوري الإيطالي' : 'Serie A',
+                  isArabic ? 'الدوري الألماني' : 'Bundesliga',
+                  isArabic ? 'الدوري المصري' : 'Egyptian League',
+                ].map((item) => (
                   <li key={item}>
                     <Link to={createPageUrl('GlobalNews')} className="text-white/60 hover:text-[#FFB81C] transition-colors">
                       {item}
@@ -301,22 +329,22 @@ export default function Layout({ children, currentPageName }) {
 
             {/* Contact */}
             <div>
-              <h4 className="font-bold text-lg mb-4">Contact</h4>
+              <h4 className="font-bold text-lg mb-4">{t('footer.contact','Contact')}</h4>
               <ul className="space-y-2 text-white/60 text-sm">
-                <li>Email: info@ceramicacleopatrafc.com</li>
-                <li>Phone: +20 2 1234 5678</li>
-                <li>Cairo, Egypt</li>
+                <li>{isArabic ? 'البريد:' : 'Email:'} info@ceramicacleopatrafc.com</li>
+                <li>{isArabic ? 'الهاتف:' : 'Phone:'} +20 2 1234 5678</li>
+                <li>{t('footer.location','Cairo, Egypt')}</li>
               </ul>
             </div>
           </div>
 
           <div className="border-t border-white/10 mt-12 pt-8 flex flex-col md:flex-row items-center justify-between gap-4">
             <p className="text-white/40 text-sm">
-              © 2024 Ceramica Cleopatra FC. All rights reserved.
+              © 2025 Ceramica Cleopatra FC. {t('footer.rights','All rights reserved')}.
             </p>
             <div className="flex gap-6 text-white/40 text-sm">
-              <Link to="#" className="hover:text-white transition-colors">Privacy Policy</Link>
-              <Link to="#" className="hover:text-white transition-colors">Terms of Service</Link>
+              <Link to="#" className="hover:text-white transition-colors">{t('footer.privacy','Privacy Policy')}</Link>
+              <Link to="#" className="hover:text-white transition-colors">{t('footer.terms','Terms of Service')}</Link>
             </div>
           </div>
         </div>

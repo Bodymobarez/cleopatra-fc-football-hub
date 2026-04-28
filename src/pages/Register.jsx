@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/lib/AuthContext';
 import { useQuery } from '@tanstack/react-query';
 import { ceramicaCleopatra } from '@/api/ceramicaCleopatraClient';
+import { useLanguage } from '@/components/LanguageContext';
 import { motion } from 'framer-motion';
 import { User, Mail, Lock, Phone, Eye, EyeOff, CheckCircle, Star } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -14,7 +15,8 @@ const PLAN_ICONS = { 0: '🆓', 99: '🥈', 249: '🥇', 799: '💎' };
 export default function Register() {
   const { register } = useAuth();
   const navigate = useNavigate();
-  const [step,    setStep]    = useState(1); // 1=details, 2=plan
+  const { isArabic } = useLanguage();
+  const [step,    setStep]    = useState(1);
   const [form,    setForm]    = useState({ full_name:'', email:'', password:'', phone:'' });
   const [planId,  setPlanId]  = useState(null);
   const [show,    setShow]    = useState(false);
@@ -59,8 +61,12 @@ export default function Register() {
             src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/695e73c9350940eda2779d4d/62a3057fb_Ceramica_Cleopatra_FC_logo.png"
             alt="Logo" className="h-16 mx-auto mb-4"
           />
-          <h1 className="text-3xl font-black text-white">Join Ceramica Cleopatra FC</h1>
-          <p className="text-white/40 mt-1">Become a member of our football family</p>
+          <h1 className="text-3xl font-black text-white">
+            {isArabic ? 'انضم لنادي سيراميكا كليوباترا' : 'Join Ceramica Cleopatra FC'}
+          </h1>
+          <p className="text-white/40 mt-1">
+            {isArabic ? 'كن عضواً في عائلتنا الكروية' : 'Become a member of our football family'}
+          </p>
         </div>
 
         {/* Steps */}
@@ -72,7 +78,7 @@ export default function Register() {
                 {step > s ? <CheckCircle className="w-4 h-4" /> : s}
               </div>
               <span className={`text-sm ${step >= s ? 'text-white' : 'text-white/30'}`}>
-                {s === 1 ? 'Your Details' : 'Choose Plan'}
+                {s === 1 ? (isArabic ? 'بياناتك' : 'Your Details') : (isArabic ? 'اختر الخطة' : 'Choose Plan')}
               </span>
               {s < 2 && <div className={`w-12 h-0.5 ${step > s ? 'bg-[#FFB81C]' : 'bg-white/10'}`} />}
             </div>
@@ -94,16 +100,16 @@ export default function Register() {
           >
             <form onSubmit={handleStep1} className="space-y-5">
               <div>
-                <label className="block text-white/60 text-sm mb-2">Full Name</label>
+                <label className="block text-white/60 text-sm mb-2">{isArabic ? 'الاسم الكامل' : 'Full Name'}</label>
                 <div className="relative">
                   <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
-                  <Input placeholder="Your full name" value={form.full_name}
+                  <Input placeholder={isArabic ? 'اسمك الكامل' : 'Your full name'} value={form.full_name}
                     onChange={e => setForm(p => ({ ...p, full_name: e.target.value }))} required
                     className="pl-10 bg-white/5 border-white/10 text-white placeholder:text-white/20 focus:border-[#FFB81C] rounded-xl" />
                 </div>
               </div>
               <div>
-                <label className="block text-white/60 text-sm mb-2">Email Address</label>
+                <label className="block text-white/60 text-sm mb-2">{isArabic ? 'البريد الإلكتروني' : 'Email Address'}</label>
                 <div className="relative">
                   <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
                   <Input type="email" placeholder="your@email.com" value={form.email}
@@ -112,7 +118,7 @@ export default function Register() {
                 </div>
               </div>
               <div>
-                <label className="block text-white/60 text-sm mb-2">Phone (optional)</label>
+                <label className="block text-white/60 text-sm mb-2">{isArabic ? 'الهاتف (اختياري)' : 'Phone (optional)'}</label>
                 <div className="relative">
                   <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
                   <Input placeholder="+20 1xx xxx xxxx" value={form.phone}
@@ -121,10 +127,10 @@ export default function Register() {
                 </div>
               </div>
               <div>
-                <label className="block text-white/60 text-sm mb-2">Password</label>
+                <label className="block text-white/60 text-sm mb-2">{isArabic ? 'كلمة المرور' : 'Password'}</label>
                 <div className="relative">
                   <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
-                  <Input type={show ? 'text' : 'password'} placeholder="Min. 6 characters"
+                  <Input type={show ? 'text' : 'password'} placeholder={isArabic ? '٦ حروف على الأقل' : 'Min. 6 characters'}
                     value={form.password}
                     onChange={e => setForm(p => ({ ...p, password: e.target.value }))} required
                     className="pl-10 pr-10 bg-white/5 border-white/10 text-white placeholder:text-white/20 focus:border-[#FFB81C] rounded-xl" />
@@ -135,12 +141,12 @@ export default function Register() {
                 </div>
               </div>
               <Button type="submit" className="w-full bg-gradient-to-r from-[#1B2852] to-[#C8102E] text-white font-bold rounded-xl h-12">
-                Continue →
+                {isArabic ? 'التالي ←' : 'Continue →'}
               </Button>
             </form>
             <p className="text-center text-sm text-white/40 mt-4">
-              Already a member?{' '}
-              <Link to="/Login" className="text-[#FFB81C] hover:underline">Sign in</Link>
+              {isArabic ? 'لديك حساب بالفعل؟ ' : 'Already a member? '}
+              <Link to="/Login" className="text-[#FFB81C] hover:underline">{isArabic ? 'سجل دخولك' : 'Sign in'}</Link>
             </p>
           </motion.div>
         )}
@@ -168,15 +174,15 @@ export default function Register() {
                       <div className="flex items-center gap-3">
                         <span className="text-2xl">{PLAN_ICONS[plan.price] || '🎯'}</span>
                         <div>
-                          <div className="font-black text-white">{plan.name}</div>
-                          <div className="text-white/50 text-xs">{plan.name_ar}</div>
+                          <div className="font-black text-white">{isArabic ? (plan.name_ar || plan.name) : plan.name}</div>
+                          <div className="text-white/50 text-xs">{isArabic ? plan.name : plan.name_ar}</div>
                         </div>
                       </div>
                       <div className="text-right">
                         <div className="font-black text-xl" style={{ color: plan.badge_color || '#FFB81C' }}>
-                          {isFree ? 'Free' : `${plan.price} EGP`}
+                          {isFree ? (isArabic ? 'مجاني' : 'Free') : `${plan.price} EGP`}
                         </div>
-                        {!isFree && <div className="text-white/30 text-xs">{plan.duration_days} days</div>}
+                        {!isFree && <div className="text-white/30 text-xs">{plan.duration_days} {isArabic ? 'يوم' : 'days'}</div>}
                       </div>
                     </div>
                     <div className="mt-3 flex flex-wrap gap-1.5">
@@ -188,7 +194,7 @@ export default function Register() {
                     </div>
                     {isSelected && (
                       <div className="mt-2 flex items-center gap-1.5 text-[#FFB81C] text-sm font-semibold">
-                        <CheckCircle className="w-4 h-4" /> Selected
+                        <CheckCircle className="w-4 h-4" /> {isArabic ? 'مختار' : 'Selected'}
                       </div>
                     )}
                   </motion.button>
@@ -199,7 +205,7 @@ export default function Register() {
             <div className="flex gap-3">
               <Button variant="outline" onClick={() => setStep(1)}
                 className="flex-1 border-white/10 text-white/60 hover:bg-white/5 rounded-xl h-12">
-                ← Back
+                {isArabic ? '→ رجوع' : '← Back'}
               </Button>
               <Button
                 onClick={handleSubmit}
@@ -208,7 +214,7 @@ export default function Register() {
               >
                 {loading
                   ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  : '🎉 Complete Registration'}
+                  : (isArabic ? '🎉 إتمام التسجيل' : '🎉 Complete Registration')}
               </Button>
             </div>
           </motion.div>

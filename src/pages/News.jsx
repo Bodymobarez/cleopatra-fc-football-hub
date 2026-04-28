@@ -8,15 +8,7 @@ import { format } from 'date-fns';
 import { Clock, Eye, Search, Filter, ChevronRight, Tag } from 'lucide-react';
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-
-const categories = [
-  { value: 'all', label: 'All News' },
-  { value: 'club_news', label: 'Club News' },
-  { value: 'match_report', label: 'Match Reports' },
-  { value: 'transfers', label: 'Transfers' },
-  { value: 'injuries', label: 'Injuries' },
-  { value: 'analysis', label: 'Analysis' },
-];
+import { useLanguage } from '@/components/LanguageContext';
 
 const categoryColors = {
   club_news: 'bg-[#d4af37] text-[#0a1628]',
@@ -28,6 +20,7 @@ const categoryColors = {
 };
 
 export default function News() {
+  const { t, isArabic } = useLanguage();
   const [category, setCategory] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -58,7 +51,7 @@ export default function News() {
             animate={{ opacity: 1, y: 0 }}
             className="text-5xl md:text-6xl font-black text-white mb-4"
           >
-            Club <span className="text-[#d4af37]">News</span>
+            {isArabic ? 'أخبار' : 'Club'} <span className="text-[#d4af37]">{isArabic ? 'النادي' : 'News'}</span>
           </motion.h1>
           <motion.p 
             initial={{ opacity: 0, y: 20 }}
@@ -66,7 +59,7 @@ export default function News() {
             transition={{ delay: 0.1 }}
             className="text-white/60 text-lg mb-8"
           >
-            Latest updates from Ceramica Cleopatra FC
+            {t('news.subtitle','Latest updates from Ceramica Cleopatra FC')}
           </motion.p>
 
           {/* Search & Filter */}
@@ -79,7 +72,7 @@ export default function News() {
             <div className="relative flex-1 min-w-[280px]">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
               <Input
-                placeholder="Search news..."
+                placeholder={isArabic ? 'ابحث في الأخبار...' : 'Search news...'}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-12 h-12 bg-white/10 border-white/20 text-white placeholder:text-white/40"
@@ -105,7 +98,7 @@ export default function News() {
           <div className="max-w-7xl mx-auto">
             <h2 className="text-2xl font-bold text-[#0a1628] mb-6 flex items-center gap-3">
               <span className="w-1.5 h-8 bg-[#d4af37] rounded-full" />
-              Featured Stories
+              {t('news.featured','Featured Stories')}
             </h2>
             <div className="grid lg:grid-cols-2 gap-6">
               {featuredNews.slice(0, 2).map((article, index) => (
@@ -220,7 +213,7 @@ export default function News() {
           {!isLoading && filteredNews.length === 0 && (
             <div className="text-center py-20">
               <Search className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-              <p className="text-gray-400 text-lg">No articles found</p>
+              <p className="text-gray-400 text-lg">{isArabic ? 'لا توجد مقالات' : 'No articles found'}</p>
             </div>
           )}
         </div>

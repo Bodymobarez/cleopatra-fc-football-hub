@@ -7,11 +7,13 @@ import { Calendar, Filter, ChevronLeft, ChevronRight } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, addMonths, subMonths, isSameMonth } from 'date-fns';
 import MatchCard from '@/components/shared/MatchCard';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useLanguage } from '@/components/LanguageContext';
 
 export default function Matches() {
+  const { t, isArabic } = useLanguage();
   const [currentMonth, setCurrentMonth] = useState(new Date());
-  const [filter, setFilter] = useState('all'); // all, ceramica, global
-  const [statusFilter, setStatusFilter] = useState('all'); // all, scheduled, finished
+  const [filter, setFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('all');
 
   const { data: matches = [], isLoading } = useQuery({
     queryKey: ['matches'],
@@ -60,7 +62,7 @@ export default function Matches() {
             animate={{ opacity: 1, y: 0 }}
             className="text-5xl md:text-6xl font-black text-white mb-4"
           >
-            Fixtures & <span className="text-[#d4af37]">Results</span>
+            {isArabic ? 'المواعيد' : 'Fixtures'} & <span className="text-[#d4af37]">{isArabic ? 'النتائج' : 'Results'}</span>
           </motion.h1>
           <motion.p 
             initial={{ opacity: 0, y: 20 }}
@@ -68,7 +70,7 @@ export default function Matches() {
             transition={{ delay: 0.1 }}
             className="text-white/60 text-lg"
           >
-            All matches featuring Ceramica Cleopatra FC and global football
+            {isArabic ? 'جميع مباريات نادي سيراميكا كليوباترا والدوريات العالمية' : 'All matches featuring Ceramica Cleopatra FC and global football'}
           </motion.p>
         </div>
       </section>
@@ -81,14 +83,14 @@ export default function Matches() {
             <div>
               <h3 className="text-lg font-bold text-[#0a1628] mb-4 flex items-center gap-2">
                 <span className="w-1 h-6 bg-green-500 rounded-full" />
-                Upcoming Matches
+                {t('matches.upcoming', 'Upcoming Matches')}
               </h3>
               <div className="space-y-3">
                 {upcomingMatches.map((match) => (
                   <div key={match.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
                     <div className="flex items-center gap-3">
                       <span className="text-sm font-medium text-[#0a1628]">{match.home_team}</span>
-                      <span className="text-gray-400">vs</span>
+                      <span className="text-gray-400">{t('matches.vs','vs')}</span>
                       <span className="text-sm font-medium text-[#0a1628]">{match.away_team}</span>
                     </div>
                     <div className="text-right">
@@ -97,7 +99,7 @@ export default function Matches() {
                   </div>
                 ))}
                 {upcomingMatches.length === 0 && (
-                  <p className="text-gray-400 text-sm">No upcoming matches</p>
+                  <p className="text-gray-400 text-sm">{isArabic ? 'لا توجد مباريات قادمة' : 'No upcoming matches'}</p>
                 )}
               </div>
             </div>
@@ -106,7 +108,7 @@ export default function Matches() {
             <div>
               <h3 className="text-lg font-bold text-[#0a1628] mb-4 flex items-center gap-2">
                 <span className="w-1 h-6 bg-[#d4af37] rounded-full" />
-                Recent Results
+                {t('matches.recent', 'Recent Results')}
               </h3>
               <div className="space-y-3">
                 {recentMatches.map((match) => (
@@ -161,21 +163,21 @@ export default function Matches() {
                   <SelectValue placeholder="Filter" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Matches</SelectItem>
-                  <SelectItem value="ceramica">Ceramica FC</SelectItem>
-                  <SelectItem value="global">Global Football</SelectItem>
+                  <SelectItem value="all">{t('matches.all_matches','All Matches')}</SelectItem>
+                  <SelectItem value="ceramica">{t('matches.ceramica_only','Ceramica FC')}</SelectItem>
+                  <SelectItem value="global">{t('matches.global','Global Football')}</SelectItem>
                 </SelectContent>
               </Select>
 
               <Select value={statusFilter} onValueChange={setStatusFilter}>
                 <SelectTrigger className="w-[140px]">
-                  <SelectValue placeholder="Status" />
+                  <SelectValue placeholder={isArabic ? 'الحالة' : 'Status'} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Status</SelectItem>
-                  <SelectItem value="scheduled">Scheduled</SelectItem>
-                  <SelectItem value="live">Live</SelectItem>
-                  <SelectItem value="finished">Finished</SelectItem>
+                  <SelectItem value="all">{t('common.all','All')}</SelectItem>
+                  <SelectItem value="scheduled">{t('matches.scheduled','Scheduled')}</SelectItem>
+                  <SelectItem value="live">{t('matches.live','Live')}</SelectItem>
+                  <SelectItem value="finished">{t('matches.finished','Finished')}</SelectItem>
                 </SelectContent>
               </Select>
             </div>

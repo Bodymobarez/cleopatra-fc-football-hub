@@ -3,8 +3,10 @@ import { Link } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
 import { ChevronRight, Calendar, MapPin, Clock, Trophy, Play } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { useLanguage } from '@/components/LanguageContext';
 
 export default function HeroSection({ latestMatch, nextMatch }) {
+  const { t, isArabic } = useLanguage();
   const [countdown, setCountdown] = useState({ days: 0, hours: 0, mins: 0, secs: 0 });
 
   useEffect(() => {
@@ -63,7 +65,7 @@ export default function HeroSection({ latestMatch, nextMatch }) {
                 className="inline-flex items-center gap-2 bg-[#FFB81C]/20 backdrop-blur-sm px-4 py-2 rounded-full border border-[#FFB81C]/30"
               >
                 <Trophy className="w-4 h-4 text-[#FFB81C]" />
-                <span className="text-[#FFB81C] text-sm font-medium">Egyptian Premier League</span>
+                <span className="text-[#FFB81C] text-sm font-medium">{isArabic ? 'الدوري المصري الممتاز' : 'Egyptian Premier League'}</span>
               </motion.div>
               
               <h1 className="text-5xl md:text-7xl font-black text-white leading-none">
@@ -126,7 +128,7 @@ export default function HeroSection({ latestMatch, nextMatch }) {
                 to={createPageUrl('Squad')}
                 className="px-8 py-4 bg-[#FFB81C] text-[#1B2852] font-bold rounded-xl hover:bg-[#f5a815] transition-all hover:scale-105 shadow-lg shadow-[#FFB81C]/25"
               >
-                View Squad
+                {isArabic ? 'عرض الفريق' : 'View Squad'}
               </Link>
               <Link 
                 to={createPageUrl('News')}
@@ -147,7 +149,7 @@ export default function HeroSection({ latestMatch, nextMatch }) {
             {nextMatch && (
               <div className="bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-xl rounded-3xl border border-white/20 overflow-hidden">
                 <div className="bg-[#FFB81C] px-6 py-3">
-                  <span className="text-[#1B2852] font-bold text-sm uppercase tracking-wider">Next Match</span>
+                  <span className="text-[#1B2852] font-bold text-sm uppercase tracking-wider">{isArabic ? 'المباراة القادمة' : 'Next Match'}</span>
                 </div>
                 <div className="p-8 space-y-8">
                   {/* Teams */}
@@ -180,10 +182,10 @@ export default function HeroSection({ latestMatch, nextMatch }) {
                   {/* Countdown */}
                   <div className="grid grid-cols-4 gap-3">
                     {[
-                      { value: countdown.days, label: 'Days' },
-                      { value: countdown.hours, label: 'Hours' },
-                      { value: countdown.mins, label: 'Mins' },
-                      { value: countdown.secs, label: 'Secs' }
+                      { value: countdown.days,  label: isArabic ? 'يوم' : 'Days' },
+                      { value: countdown.hours, label: isArabic ? 'ساعة' : 'Hours' },
+                      { value: countdown.mins,  label: isArabic ? 'دقيقة' : 'Mins' },
+                      { value: countdown.secs,  label: isArabic ? 'ثانية' : 'Secs' }
                     ].map((item, i) => (
                       <motion.div 
                       key={item.label}
@@ -225,7 +227,7 @@ export default function HeroSection({ latestMatch, nextMatch }) {
                     className="flex items-center justify-center gap-2 w-full py-4 bg-white/10 text-white font-semibold rounded-xl hover:bg-white/20 transition-all"
                   >
                     <Calendar className="w-5 h-5" />
-                    View All Fixtures
+                    {isArabic ? 'جميع المباريات' : 'View All Fixtures'}
                   </Link>
                 </div>
               </div>

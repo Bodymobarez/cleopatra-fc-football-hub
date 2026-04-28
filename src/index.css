@@ -86,3 +86,42 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Arabic RTL support */
+:root {
+  --font-en: 'Inter', system-ui, sans-serif;
+  --font-ar: 'Cairo', 'Tajawal', sans-serif;
+}
+
+html[lang="ar"] body,
+html[dir="rtl"] body {
+  font-family: var(--font-ar);
+  direction: rtl;
+}
+
+html[lang="en"] body,
+html[dir="ltr"] body {
+  font-family: var(--font-en);
+  direction: ltr;
+}
+
+/* RTL layout fixes */
+html[dir="rtl"] .sidebar-rtl {
+  left: auto;
+  right: 0;
+}
+
+html[dir="rtl"] .main-rtl {
+  margin-left: 0;
+  margin-right: 16rem;
+}
+
+/* Smooth font switching */
+* {
+  transition: font-family 0.1s;
+}
+
+/* Arabic number styling */
+html[lang="ar"] .ar-nums {
+  font-feature-settings: "lnum" 1;
+}

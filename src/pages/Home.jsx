@@ -2,6 +2,7 @@ import React from 'react';
 import { ceramicaCleopatra } from '@/api/ceramicaCleopatraClient';
 import { useQuery } from '@tanstack/react-query';
 import { ensureArray } from '@/utils';
+import { useLanguage } from '@/components/LanguageContext';
 
 import HeroSection from '@/components/home/HeroSection';
 import NewsTicker from '@/components/home/NewsTicker';
@@ -11,6 +12,7 @@ import NewsGrid from '@/components/home/NewsGrid';
 import FeaturedVideo from '@/components/home/FeaturedVideo';
 
 export default function Home() {
+  const { t, isArabic } = useLanguage();
   const { data: matches = [] } = useQuery({
     queryKey: ['matches'],
     queryFn: () => ceramicaCleopatra.entities.Match.list('-date', 20),
@@ -55,7 +57,7 @@ export default function Home() {
       {/* Club News */}
       <NewsGrid 
         news={clubNews.length > 0 ? clubNews : news.slice(0, 5)} 
-        title="Club News" 
+        title={isArabic ? 'أخبار النادي' : 'Club News'} 
       />
 
       {/* Featured Videos */}

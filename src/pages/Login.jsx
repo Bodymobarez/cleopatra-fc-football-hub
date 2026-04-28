@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/lib/AuthContext';
+import { useLanguage } from '@/components/LanguageContext';
 import { motion } from 'framer-motion';
 import { Mail, Lock, Eye, EyeOff, LogIn, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -10,6 +11,7 @@ import { toast } from 'sonner';
 export default function Login() {
   const { login } = useAuth();
   const navigate  = useNavigate();
+  const { isArabic } = useLanguage();
   const [form, setForm]   = useState({ email: '', password: '' });
   const [show, setShow]   = useState(false);
   const [loading, setLoading] = useState(false);
@@ -21,12 +23,14 @@ export default function Login() {
     setLoading(true);
     try {
       const data = await login(form.email, form.password);
-      toast.success(`Welcome back, ${data.user.full_name}! 👋`);
+      toast.success(isArabic ? `أهلاً بعودتك، ${data.user.full_name}!` : `Welcome back, ${data.user.full_name}! 👋`);
       navigate(data.user.role === 'admin' ? '/AdminPanel' : '/Dashboard');
     } catch (err) {
-      const msg = err.message?.includes('401') ? 'Invalid email or password'
-                : err.message?.includes('403') ? 'Account suspended'
-                : 'Login failed. Please try again.';
+      const msg = err.message?.includes('401')
+        ? (isArabic ? 'بيانات الدخول غير صحيحة' : 'Invalid email or password')
+        : err.message?.includes('403')
+        ? (isArabic ? 'الحساب موقوف' : 'Account suspended')
+        : (isArabic ? 'فشل تسجيل الدخول، حاول مرة أخرى' : 'Login failed. Please try again.');
       setError(msg);
     } finally { setLoading(false); }
   };
@@ -40,17 +44,19 @@ export default function Login() {
         animate={{ opacity: 1, y: 0 }}
         className="relative w-full max-w-md"
       >
-        {/* Card */}
         <div className="bg-gray-900 border border-white/10 rounded-3xl p-8 shadow-2xl">
-          {/* Logo */}
           <div className="text-center mb-8">
             <img
               src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/695e73c9350940eda2779d4d/62a3057fb_Ceramica_Cleopatra_FC_logo.png"
               alt="Logo"
               className="h-20 mx-auto mb-4"
             />
-            <h1 className="text-2xl font-black text-white">Member Login</h1>
-            <p className="text-white/40 text-sm mt-1">Sign in to your account</p>
+            <h1 className="text-2xl font-black text-white">
+              {isArabic ? 'تسجيل دخول الأعضاء' : 'Member Login'}
+            </h1>
+            <p className="text-white/40 text-sm mt-1">
+              {isArabic ? 'ادخل على حسابك' : 'Sign in to your account'}
+            </p>
           </div>
 
           {error && (
@@ -65,15 +71,17 @@ export default function Login() {
           )}
 
           <form onSubmit={handleSubmit} className="space-y-5">
-            {/* Email */}
             <div>
-              <label className="block text-white/60 text-sm mb-2">Email Address</label>
+              <label className="block text-white/60 text-sm mb-2">
+                {isArabic ? 'البريد الإلكتروني' : 'Email Address'}
+              </label>
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
                 <Input
                   type="email"
                   placeholder="your@email.com"
                   value={form.email}
+                  autoComplete="email"
                   onChange={e => setForm(p => ({ ...p, email: e.target.value }))}
                   required
                   className="pl-10 bg-white/5 border-white/10 text-white placeholder:text-white/20 focus:border-[#FFB81C] rounded-xl"
@@ -81,15 +89,17 @@ export default function Login() {
               </div>
             </div>
 
-            {/* Password */}
             <div>
-              <label className="block text-white/60 text-sm mb-2">Password</label>
+              <label className="block text-white/60 text-sm mb-2">
+                {isArabic ? 'كلمة المرور' : 'Password'}
+              </label>
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
                 <Input
                   type={show ? 'text' : 'password'}
                   placeholder="••••••••"
                   value={form.password}
+                  autoComplete="current-password"
                   onChange={e => setForm(p => ({ ...p, password: e.target.value }))}
                   required
                   className="pl-10 pr-10 bg-white/5 border-white/10 text-white placeholder:text-white/20 focus:border-[#FFB81C] rounded-xl"
@@ -112,24 +122,25 @@ export default function Login() {
               {loading ? (
                 <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
               ) : (
-                <><LogIn className="w-4 h-4 mr-2" /> Sign In</>
+                <><LogIn className="w-4 h-4 mr-2" /> {isArabic ? 'دخول' : 'Sign In'}</>
               )}
             </Button>
           </form>
 
           <div className="mt-6 text-center text-sm text-white/40">
-            Don't have an account?{' '}
+            {isArabic ? 'ليس لديك حساب؟ ' : "Don't have an account? "}
             <Link to="/Register" className="text-[#FFB81C] hover:underline font-semibold">
-              Join Now
+              {isArabic ? 'انضم الآن' : 'Join Now'}
             </Link>
           </div>
 
           <div className="mt-2 text-center text-xs text-white/20">
-            <Link to="/" className="hover:text-white/40">← Back to website</Link>
+            <Link to="/" className="hover:text-white/40">
+              {isArabic ? '← العودة للموقع' : '← Back to website'}
+            </Link>
           </div>
         </div>
 
-        {/* Admin hint */}
         <p className="text-center text-white/20 text-xs mt-4">
           Admin: admin@ceramicacleopatra.com
         </p>

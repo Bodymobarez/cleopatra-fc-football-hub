@@ -4,17 +4,19 @@ import { useQuery } from '@tanstack/react-query';
 import { ensureArray } from '@/utils';
 import { motion } from 'framer-motion';
 import { Users, Shield, Target, Crosshair } from 'lucide-react';
+import { useLanguage } from '@/components/LanguageContext';
 import PlayerCard from '@/components/shared/PlayerCard';
 
-const positions = [
-  { key: 'all', label: 'All Players', icon: Users },
-  { key: 'Goalkeeper', label: 'Goalkeepers', icon: Shield },
-  { key: 'Defender', label: 'Defenders', icon: Shield },
-  { key: 'Midfielder', label: 'Midfielders', icon: Target },
-  { key: 'Forward', label: 'Forwards', icon: Crosshair }
+const positionsEn = [
+  { key: 'all',        label: 'All Players',  labelAr: 'جميع اللاعبين', icon: Users },
+  { key: 'Goalkeeper', label: 'Goalkeepers',  labelAr: 'حراس المرمى',  icon: Shield },
+  { key: 'Defender',   label: 'Defenders',    labelAr: 'المدافعون',     icon: Shield },
+  { key: 'Midfielder', label: 'Midfielders',  labelAr: 'لاعبو الوسط',  icon: Target },
+  { key: 'Forward',    label: 'Forwards',     labelAr: 'المهاجمون',     icon: Crosshair },
 ];
 
 export default function Squad() {
+  const { t, isArabic } = useLanguage();
   const [activePosition, setActivePosition] = useState('all');
 
   const { data: players = [], isLoading } = useQuery({
@@ -49,7 +51,7 @@ export default function Squad() {
             animate={{ opacity: 1, y: 0 }}
             className="text-5xl md:text-6xl font-black text-white mb-4"
           >
-            First Team <span className="text-[#d4af37]">Squad</span>
+            {isArabic ? 'قائمة' : 'First Team'} <span className="text-[#d4af37]">{isArabic ? 'الفريق' : 'Squad'}</span>
           </motion.h1>
           <motion.p 
             initial={{ opacity: 0, y: 20 }}
@@ -57,7 +59,7 @@ export default function Squad() {
             transition={{ delay: 0.1 }}
             className="text-white/60 text-lg max-w-2xl mx-auto"
           >
-            Meet the players who represent Ceramica Cleopatra FC on the pitch
+            {isArabic ? 'تعرف على لاعبي نادي سيراميكا كليوباترا' : 'Meet the players who represent Ceramica Cleopatra FC on the pitch'}
           </motion.p>
         </div>
       </section>
@@ -66,7 +68,7 @@ export default function Squad() {
       <section className="sticky top-20 z-30 bg-[#0a1628]/95 backdrop-blur-xl border-b border-white/10">
         <div className="max-w-7xl mx-auto px-4">
           <div className="flex gap-2 overflow-x-auto py-4 scrollbar-hide">
-            {positions.map((pos) => (
+            {positionsEn.map((pos) => (
               <button
                 key={pos.key}
                 onClick={() => setActivePosition(pos.key)}
@@ -77,7 +79,7 @@ export default function Squad() {
                 }`}
               >
                 <pos.icon className="w-4 h-4" />
-                {pos.label}
+                {isArabic ? pos.labelAr : pos.label}
               </button>
             ))}
           </div>
@@ -100,7 +102,9 @@ export default function Squad() {
                 <div key={position} className="mb-12">
                   <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-3">
                     <span className="w-1.5 h-8 bg-[#d4af37] rounded-full" />
-                    {position}s
+                    {isArabic
+                      ? positionsEn.find(p => p.key === position)?.labelAr || position
+                      : `${position}s`}
                     <span className="text-white/40 text-lg font-normal">({posPlayers.length})</span>
                   </h2>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
