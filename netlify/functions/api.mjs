@@ -1257,44 +1257,67 @@ router.get('/relegation-standings', async (_req, res) => {
   try {
     const { query } = getSQL();
 
-    // All finished relegation group matches stored in DB
-    const rawRes = await query(
-      `SELECT home_team, away_team, home_score, away_score, home_team_logo, away_team_logo, date
+    // Step 1: Identify relegation group teams from their phase matches
+    const relTeamRes = await query(
+      `SELECT DISTINCT home_team, away_team, home_team_logo, away_team_logo
        FROM matches
-       WHERE status = 'finished'
-         AND (LOWER(competition) LIKE '%relegation%')
-       ORDER BY date ASC`,
+       WHERE LOWER(competition) LIKE '%relegation%'`,
       []
     );
-    const rows = Array.isArray(rawRes) ? rawRes : (rawRes?.rows || []);
+    const relTeamRows = Array.isArray(relTeamRes) ? relTeamRes : (relTeamRes?.rows || []);
 
-    // Also include live/in-progress
-    const liveRes = await query(
-      `SELECT home_team, away_team, home_score, away_score, home_team_logo, away_team_logo, date
-       FROM matches
-       WHERE status IN ('live','halftime')
-         AND (LOWER(competition) LIKE '%relegation%')`,
-      []
-    );
-    const liveRows = Array.isArray(liveRes) ? liveRes : (liveRes?.rows || []);
-    const allRows = [...rows, ...liveRows];
+    // Build set of relegation team names + logo map
+    const relTeamNames = new Set();
+    const logoMap = {};
+    for (const r of relTeamRows) {
+      if (r.home_team) { relTeamNames.add(r.home_team); if (r.home_team_logo) logoMap[r.home_team] = r.home_team_logo; }
+      if (r.away_team) { relTeamNames.add(r.away_team); if (r.away_team_logo) logoMap[r.away_team] = r.away_team_logo; }
+    }
 
-    if (allRows.length === 0) {
+    if (relTeamNames.size === 0) {
       return res.json({ teams: [], computed: true, fromMatches: 0 });
     }
 
-    // Build standings map
+    // Step 2: Fetch ALL finished matches for relegation teams (full season = regular + relegation phase)
+    const teamList = Array.from(relTeamNames);
+    const placeholders = teamList.map((_, i) => `$${i + 1}`).join(', ');
+    const allMatchRes = await query(
+      `SELECT home_team, away_team, home_score, away_score, home_team_logo, away_team_logo, date, competition, status
+       FROM matches
+       WHERE status IN ('finished', 'live', 'halftime')
+         AND (home_team IN (${placeholders}) OR away_team IN (${placeholders}))
+       ORDER BY date ASC`,
+      teamList
+    );
+    const allMatches = Array.isArray(allMatchRes) ? allMatchRes : (allMatchRes?.rows || []);
+
+    // Step 3: Build standings — only count goals/wins from matches where BOTH teams are relegation teams
+    //         (exclude cross-group matches in the regular season against championship teams)
     const teams = {};
-    const ensure = (name, logo) => {
-      if (!teams[name]) teams[name] = { team: name, team_logo: logo || null, played: 0, won: 0, drawn: 0, lost: 0, goals_for: 0, goals_against: 0, goal_difference: 0, points: 0, form: '' };
-      if (logo && !teams[name].team_logo) teams[name].team_logo = logo;
+    const ensure = (name) => {
+      if (!teams[name]) teams[name] = {
+        team: name, team_logo: logoMap[name] || null,
+        played: 0, won: 0, drawn: 0, lost: 0,
+        goals_for: 0, goals_against: 0, goal_difference: 0,
+        points: 0, form: '',
+      };
     };
 
-    for (const m of allRows) {
+    for (const m of allMatches) {
+      const bothInGroup = relTeamNames.has(m.home_team) && relTeamNames.has(m.away_team);
+      // For regular season, only both-in-group matches contribute
+      // For relegation phase, always include
+      const isRelPhase = (m.competition || '').toLowerCase().includes('relegation');
+      if (!isRelPhase && !bothInGroup) continue;
+
       const hs = parseInt(m.home_score || 0);
       const as = parseInt(m.away_score || 0);
-      ensure(m.home_team, m.home_team_logo);
-      ensure(m.away_team, m.away_team_logo);
+      if (!relTeamNames.has(m.home_team) || !relTeamNames.has(m.away_team)) continue;
+
+      ensure(m.home_team);
+      ensure(m.away_team);
+      if (m.home_team_logo && !teams[m.home_team].team_logo) teams[m.home_team].team_logo = m.home_team_logo;
+      if (m.away_team_logo && !teams[m.away_team].team_logo) teams[m.away_team].team_logo = m.away_team_logo;
 
       const h = teams[m.home_team];
       const a = teams[m.away_team];
@@ -1314,12 +1337,15 @@ router.get('/relegation-standings', async (_req, res) => {
       }
     }
 
+    // Ensure all relegation teams appear even if 0 matches played yet
+    for (const name of relTeamNames) ensure(name);
+
     const sorted = Object.values(teams)
       .map(t => ({ ...t, goal_difference: t.goals_for - t.goals_against }))
       .sort((a, b) => b.points - a.points || b.goal_difference - a.goal_difference || b.goals_for - a.goals_for)
       .map((t, i) => ({ ...t, position: i + 1, form: t.form.slice(-5) }));
 
-    res.json({ teams: sorted, computed: true, fromMatches: allRows.length, updatedAt: new Date().toISOString() });
+    res.json({ teams: sorted, computed: true, fromMatches: allMatches.length, updatedAt: new Date().toISOString() });
   } catch (err) {
     console.error('relegation-standings', err);
     res.status(500).json({ error: err.message, teams: [] });
