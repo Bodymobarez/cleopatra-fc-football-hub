@@ -53,12 +53,12 @@ export const ceramicaCleopatra = {
     Standing: makeEntity('standings'),
   },
 
-  // Auth stubs — app runs in public/no-auth mode
+  // Auth stubs — app runs in public/no-auth mode (no network calls)
   auth: {
-    me:               () => apiFetch('GET', '/auth/me'),
-    isAuthenticated:  async () => { try { await apiFetch('GET', '/auth/me'); return true; } catch { return false; } },
-    logout:           () => {},
-    redirectToLogin:  () => {},
+    me:              () => Promise.resolve(null),
+    isAuthenticated: () => Promise.resolve(false),
+    logout:          () => {},
+    redirectToLogin: () => {},
   },
 
   // App logging — no-op
