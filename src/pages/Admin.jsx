@@ -268,25 +268,25 @@ export default function Admin() {
               <Database className="w-5 h-5 text-[#FFB81C]" />
               How the Sync Works
             </h3>
-            <div className="grid md:grid-cols-2 gap-4 text-sm text-white/60">
+              <div className="grid md:grid-cols-2 gap-4 text-sm text-white/60">
               <div className="space-y-2">
                 <p className="flex items-start gap-2">
                   <span className="text-[#FFB81C] mt-0.5">▸</span>
-                  <span>البيانات تأتي مباشرة من <strong className="text-white">api-sports.io</strong> (v3 Football API)</span>
+                  <span>البيانات تأتي مباشرة من <strong className="text-white">API-Football</strong> (api-football.com)</span>
                 </p>
                 <p className="flex items-start gap-2">
                   <span className="text-[#FFB81C] mt-0.5">▸</span>
-                  <span>جدول الترتيب يُحدَّث من League 233 (Eg. Premier League)</span>
+                  <span>جدول الترتيب: League 233 (Egyptian Premier League)</span>
                 </p>
                 <p className="flex items-start gap-2">
                   <span className="text-[#FFB81C] mt-0.5">▸</span>
-                  <span>قائمة اللاعبين تُستورد من Team 14651 (Ceramica Cleopatra)</span>
+                  <span>قائمة اللاعبين: Team 14651 (Ceramica Cleopatra FC)</span>
                 </p>
               </div>
               <div className="space-y-2">
                 <p className="flex items-start gap-2">
                   <span className="text-[#FFB81C] mt-0.5">▸</span>
-                  <span>المباريات: fixtures للموسم 2024 كاملة + آخر 30 مباراة في الدوري</span>
+                  <span>المباريات: كل fixtures الموسم الحالي مع نتائج حقيقية</span>
                 </p>
                 <p className="flex items-start gap-2">
                   <span className="text-[#FFB81C] mt-0.5">▸</span>
@@ -294,7 +294,17 @@ export default function Admin() {
                 </p>
                 <p className="flex items-start gap-2">
                   <span className="text-[#FFB81C] mt-0.5">▸</span>
-                  <span>Sync كل شيء في ضغطة واحدة على "مزامنة كل شيء"</span>
+                  <span>
+                    لتفعيل موسم 2025/26:{' '}
+                    <a
+                      href="https://dashboard.api-football.com/subscription/soccer"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-[#FFB81C] underline font-semibold"
+                    >
+                      ترقية الخطة هنا
+                    </a>
+                  </span>
                 </p>
               </div>
             </div>
