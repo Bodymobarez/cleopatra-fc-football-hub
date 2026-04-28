@@ -279,11 +279,18 @@ syncRouter.post('/matches', async (_req, res) => {
   try {
     const { query } = getSQL();
 
-    // Fetch past + upcoming Ceramica matches
-    const [ceramicaFixtures, allLeagueRecent] = await Promise.all([
-      apiFootball(`/fixtures?team=${TEAM_ID}&league=${LEAGUE_ID}&season=${SEASON}`),
-      apiFootball(`/fixtures?league=${LEAGUE_ID}&season=${SEASON}&last=30`),
-    ]);
+    // Fetch all Ceramica season fixtures
+    const ceramicaFixtures = await apiFootball(
+      `/fixtures?team=${TEAM_ID}&league=${LEAGUE_ID}&season=${SEASON}`,
+    );
+
+    // Fetch recent EPL matches (round-based, no "last" param which needs paid plan)
+    let allLeagueRecent = [];
+    try {
+      allLeagueRecent = await apiFootball(
+        `/fixtures?league=${LEAGUE_ID}&season=${SEASON}&round=Regular Season - 17`,
+      );
+    } catch { /* optional */ }
 
     const ceramicaIds = new Set(ceramicaFixtures.map(f => f.fixture.id));
 
