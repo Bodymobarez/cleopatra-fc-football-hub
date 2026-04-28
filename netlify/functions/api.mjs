@@ -10,11 +10,17 @@ app.use(cors({ origin: true, credentials: true }));
 app.use(express.json());
 
 // ─── Constants ────────────────────────────────────────────────────────────────
-const LEAGUE_ID       = 233;
-const TEAM_ID         = 14651;
-const SEASON          = 2024;
-const SEASON_FALLBACK = 2024;
-const JWT_SECRET      = process.env.JWT_SECRET || 'ceramica-cleopatra-secret-2025';
+const JWT_SECRET       = process.env.JWT_SECRET || 'ceramica-cleopatra-secret-2025';
+// Flashscore (sportdb.dev)
+const FS_KEY           = process.env.FLASHSCORE_KEY || 'zmO3NRRbfutiLMeoToANRALmnTeHcPylzbYcuSED';
+const FS_BASE          = 'https://api.sportdb.dev';
+const EGYPT_ID         = 69;
+const EPL_SLUG         = 'premier-league';
+const EPL_ID           = 'xbpjAGxq';
+const SEASON           = '2025-2026';
+const CERAMICA_SLUG    = 'ceramica-cleopatra';
+const CERAMICA_ID      = 'ATasWtPS';
+const LOGO_CDN         = 'https://static.flashscore.com/res/image/data/';
 
 // ─── DB helper ────────────────────────────────────────────────────────────────
 const getSQL = () => {
@@ -22,32 +28,19 @@ const getSQL = () => {
   return { query: (text, values) => s.query(text, values) };
 };
 
-// ─── API-Football helper ──────────────────────────────────────────────────────
-async function apiFootball(path) {
-  const apiKey = process.env.API_FOOTBALL_KEY || 'd38e461170b465ee0312915c9bcad93d';
-  const res = await fetch(`https://v3.football.api-sports.io${path}`, {
-    headers: { 'x-apisports-key': apiKey },
-  });
-  if (!res.ok) throw new Error(`API-Football ${res.status}: ${path}`);
-  const data = await res.json();
-  if (data.errors && Object.keys(data.errors).length > 0) {
-    const err = new Error(JSON.stringify(data.errors));
-    if (JSON.stringify(data.errors).includes('Free plans')) err.seasonFallback = true;
-    throw err;
-  }
-  return data.response;
+// ─── Flashscore helper ────────────────────────────────────────────────────────
+async function flashscore(path) {
+  const url = path.startsWith('http') ? path : `${FS_BASE}${path}`;
+  const res = await fetch(url, { headers: { 'X-API-Key': FS_KEY } });
+  if (!res.ok) throw new Error(`Flashscore ${res.status}: ${path}`);
+  return res.json();
 }
 
-async function apiFootballWithFallback(pathFn) {
-  try {
-    return { data: await apiFootball(pathFn(SEASON)), season: SEASON };
-  } catch (err) {
-    if (err.seasonFallback) {
-      return { data: await apiFootball(pathFn(SEASON_FALLBACK)), season: SEASON_FALLBACK };
-    }
-    throw err;
-  }
-}
+// Build full logo URL from partial image string
+const fsLogo = (part) => part ? (part.startsWith('http') ? part : `${LOGO_CDN}${part}`) : null;
+
+// EPL base path
+const EPL_PATH = `/api/flashscore/football/egypt:${EGYPT_ID}/${EPL_SLUG}:${EPL_ID}`;
 
 // ─── JWT helpers ─────────────────────────────────────────────────────────────
 const signToken = (user) =>
@@ -468,125 +461,208 @@ router.get('/admin/stats', requireAdmin, async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// ── API-Football Sync ─────────────────────────────────────────────────────────
+// ── Flashscore Sync ───────────────────────────────────────────────────────────
 const syncRouter = express.Router();
 
+// ── Standings ────────────────────────────────────────────────────────────────
 syncRouter.post('/standings', async (_req, res) => {
   try {
     const { query } = getSQL();
-    const { data: response, season: s } = await apiFootballWithFallback(
-      ss => `/standings?league=${LEAGUE_ID}&season=${ss}`
-    );
-    const league = response[0]?.league;
-    if (!league) return res.status(404).json({ error: 'No standings data' });
-    const groups = league.standings || [];
-    let best = groups[0] || [];
-    for (const g of groups) if (g.length > best.length) best = g;
-    const teams = best.map(t => ({
-      position: t.rank, team: t.team.name, team_id: t.team.id, team_logo: t.team.logo,
-      played: t.all.played, won: t.all.win, drawn: t.all.draw, lost: t.all.lose,
-      goals_for: t.all.goals.for, goals_against: t.all.goals.against,
-      goal_difference: t.goalsDiff, points: t.points, form: t.form || '', description: t.description || '',
-    }));
+
+    // Fetch standings + results (to build logo map)
+    const [standingsRaw, resultsRaw] = await Promise.all([
+      flashscore(`${EPL_PATH}/${SEASON}/standings`),
+      flashscore(`${EPL_PATH}/${SEASON}/results?page=1`).catch(() => []),
+    ]);
+
+    // Build teamId → logo map from match data
+    const logoMap = {};
+    for (const m of (Array.isArray(resultsRaw) ? resultsRaw : [])) {
+      if (m.homeParticipantIds && m.homeLogo) logoMap[m.homeParticipantIds] = fsLogo(m.homeLogo);
+      if (m.awayParticipantIds && m.awayLogo)  logoMap[m.awayParticipantIds] = fsLogo(m.awayLogo);
+    }
+
+    const teams = (Array.isArray(standingsRaw) ? standingsRaw : []).map(t => {
+      const [gf, ga] = (t.goals || '0:0').split(':').map(Number);
+      const form = (t.events || [])
+        .filter(e => e.eventType !== 'upcoming')
+        .map(e => e.eventSymbol === 'W' ? 'W' : e.eventSymbol === 'D' ? 'D' : 'L')
+        .join('');
+      return {
+        position:       parseInt(t.rank),
+        team:           t.teamName,
+        team_id:        t.teamId,
+        team_logo:      logoMap[t.teamId] || `https://ui-avatars.com/api/?name=${encodeURIComponent(t.teamName)}&size=100&background=1B2852&color=FFB81C`,
+        played:         parseInt(t.matches || 0),
+        won:            parseInt(t.winsRegular || t.wins || 0),
+        drawn:          parseInt(t.draws || 0),
+        lost:           parseInt(t.lossesRegular || 0),
+        goals_for:      gf || 0,
+        goals_against:  ga || 0,
+        goal_difference: parseInt(t.goalDiff || 0),
+        points:         parseInt(t.points || 0),
+        form,
+        description:    t.rankClass || '',
+        rank_color:     t.rankColor || '',
+      };
+    });
+
     await query('DELETE FROM standings', []);
-    await query(`INSERT INTO standings (competition,season,teams,created_date) VALUES ($1,$2,$3,$4)`,
-      ['Egyptian Premier League', `${s}/${s+1}`, JSON.stringify(teams), new Date().toISOString()]);
-    res.json({ synced: true, teams: teams.length, season: `${s}/${s+1}`, updatedAt: new Date().toISOString() });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+    await query(
+      `INSERT INTO standings (competition, season, teams, created_date) VALUES ($1,$2,$3,$4)`,
+      ['Egyptian Premier League', SEASON, JSON.stringify(teams), new Date().toISOString()],
+    );
+
+    res.json({ synced: true, teams: teams.length, season: SEASON, updatedAt: new Date().toISOString() });
+  } catch (err) {
+    console.error('sync/standings', err);
+    res.status(500).json({ error: err.message });
+  }
 });
 
+// ── Squad ────────────────────────────────────────────────────────────────────
 syncRouter.post('/squad', async (_req, res) => {
   try {
     const { query } = getSQL();
-    const response = await apiFootball(`/players/squads?team=${TEAM_ID}`);
-    const players  = response[0]?.players || [];
-    let statsMap = {};
-    try {
-      const { data: statsResp } = await apiFootballWithFallback(
-        ss => `/players?team=${TEAM_ID}&league=${LEAGUE_ID}&season=${ss}&page=1`
-      );
-      for (const item of statsResp) {
-        if (item.player?.id) statsMap[item.player.id] = item.statistics?.[0] || {};
+    const teamData = await flashscore(`/api/flashscore/team/${CERAMICA_SLUG}/${CERAMICA_ID}`);
+    const ceramicaLogo = teamData.teamLogo || '';
+
+    // Collect all players from all squad groups, de-duplicate by id
+    const seen = new Set();
+    const allPlayers = [];
+    for (const group of (teamData.squad || [])) {
+      for (const p of (group.players || [])) {
+        if (!seen.has(p.id) && p.position !== 'Coach') {
+          seen.add(p.id);
+          allPlayers.push(p);
+        }
       }
-    } catch {}
-    const posMap = { Goalkeeper:'Goalkeeper', Defender:'Defender', Midfielder:'Midfielder', Attacker:'Forward' };
+    }
+
+    const posMap = { Goalkeepers:'Goalkeeper', Defenders:'Defender', Midfielders:'Midfielder', Forwards:'Forward' };
+
     await query('DELETE FROM players', []);
-    for (const p of players) {
-      const st = statsMap[p.id] || {};
-      const stats = {
-        appearances: st.games?.appearences || 0, goals: st.goals?.total || 0,
-        assists: st.goals?.assists || 0, yellow_cards: st.cards?.yellow || 0,
-        red_cards: st.cards?.red || 0, rating: parseFloat(st.games?.rating) || null,
-      };
+    for (const p of allPlayers) {
+      const name = `${p.firstName} ${p.lastName}`.trim();
       await query(
-        `INSERT INTO players (name,number,position,nationality,photo_url,status,is_captain,stats)
+        `INSERT INTO players (name, number, position, nationality, photo_url, status, is_captain, stats)
          VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
-        [p.name, p.number || null, posMap[p.position] || p.position, 'Egyptian',
-         p.photo || `https://ui-avatars.com/api/?name=${encodeURIComponent(p.name)}&size=400&background=1B2852&color=FFB81C`,
-         'available', false, JSON.stringify(stats)],
+        [
+          name,
+          p.jerseyNumber ? parseInt(p.jerseyNumber) || null : null,
+          posMap[p.position] || p.position || 'Midfielder',
+          p.countryName || 'Egyptian',
+          `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&size=400&background=1B2852&color=FFB81C`,
+          'available',
+          false,
+          JSON.stringify({ appearances: 0, goals: 0, assists: 0, yellow_cards: 0, red_cards: 0 }),
+        ],
       );
     }
-    res.json({ synced: true, players: players.length, updatedAt: new Date().toISOString() });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+
+    res.json({ synced: true, players: allPlayers.length, team: teamData.teamName, updatedAt: new Date().toISOString() });
+  } catch (err) {
+    console.error('sync/squad', err);
+    res.status(500).json({ error: err.message });
+  }
 });
 
+// ── Matches ────────────────────────────────────────────────────────────────
 syncRouter.post('/matches', async (_req, res) => {
   try {
     const { query } = getSQL();
-    const { data: fixtures, season: s } = await apiFootballWithFallback(
-      ss => `/fixtures?team=${TEAM_ID}&league=${LEAGUE_ID}&season=${ss}`
-    );
-    let otherMatches = [];
-    try {
-      const { data } = await apiFootballWithFallback(
-        ss => `/fixtures?league=${LEAGUE_ID}&season=${ss}&round=Regular Season - 17`
-      );
-      otherMatches = data;
-    } catch {}
-    const ceramicaIds = new Set(fixtures.map(f => f.fixture.id));
-    const all = [...fixtures, ...otherMatches.filter(f => !ceramicaIds.has(f.fixture.id))];
-    const statusMap = { FT:'finished',AET:'finished',PEN:'finished',NS:'scheduled',TBD:'scheduled','1H':'live','2H':'live',HT:'live',ET:'live',PST:'postponed',CANC:'cancelled' };
+
+    const [resultsRaw, fixturesRaw] = await Promise.all([
+      flashscore(`${EPL_PATH}/${SEASON}/results?page=1`).catch(() => []),
+      flashscore(`${EPL_PATH}/${SEASON}/fixtures?page=1`).catch(() => []),
+    ]);
+
+    const stageMap = { '3':'finished', '242':'finished', '12':'live', '13':'live', '38':'live', '2':'live', '6':'live', '1':'scheduled', '7':'penalties' };
+
+    const processMatch = (m) => {
+      const isCeramica = m.homeParticipantIds === CERAMICA_ID || m.awayParticipantIds === CERAMICA_ID;
+      const status = stageMap[m.eventStageId] || (m.eventStage === 'FINISHED' ? 'finished' : 'scheduled');
+      return {
+        home_team:        m.homeName,
+        away_team:        m.awayName,
+        date:             m.startDateTimeUtc || new Date(parseInt(m.startUtime || m.startTime || 0) * 1000).toISOString(),
+        venue:            null,
+        status,
+        home_score:       status !== 'scheduled' ? (parseInt(m.homeFullTimeScore ?? m.homeScore) || 0) : null,
+        away_score:       status !== 'scheduled' ? (parseInt(m.awayFullTimeScore ?? m.awayScore) || 0) : null,
+        competition:      m.tournamentName || 'Egyptian Premier League',
+        match_type:       'league',
+        is_ceramica_match: isCeramica,
+        home_team_logo:   fsLogo(m.homeLogo),
+        away_team_logo:   fsLogo(m.awayLogo),
+        api_fixture_id:   m.eventId ? parseInt(m.eventId.replace(/[^0-9]/g,'').slice(0,15) || '0') : null,
+        round:            m.round || null,
+      };
+    };
+
+    const allMatches = [
+      ...(Array.isArray(resultsRaw) ? resultsRaw : []),
+      ...(Array.isArray(fixturesRaw) ? fixturesRaw : []),
+    ].map(processMatch);
+
     await query('DELETE FROM matches', []);
-    for (const f of all) {
-      const fix = f.fixture; const home = f.teams.home; const away = f.teams.away;
+    for (const m of allMatches) {
       await query(
-        `INSERT INTO matches (home_team,away_team,date,venue,status,home_score,away_score,competition,match_type,is_ceramica_match,home_team_logo,away_team_logo,api_fixture_id)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) ON CONFLICT (api_fixture_id) DO UPDATE SET status=EXCLUDED.status,home_score=EXCLUDED.home_score,away_score=EXCLUDED.away_score`,
-        [home.name, away.name, fix.date, fix.venue?.name, statusMap[fix.status.short] || 'scheduled',
-         f.goals.home, f.goals.away, f.league?.name || 'EPL', 'league',
-         home.id === TEAM_ID || away.id === TEAM_ID, home.logo, away.logo, fix.id],
+        `INSERT INTO matches
+          (home_team,away_team,date,status,home_score,away_score,competition,match_type,is_ceramica_match,home_team_logo,away_team_logo)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
+        [m.home_team, m.away_team, m.date, m.status, m.home_score, m.away_score,
+         m.competition, m.match_type, m.is_ceramica_match, m.home_team_logo, m.away_team_logo],
       );
     }
-    res.json({ synced: true, matches: all.length, season: `${s}/${s+1}`, updatedAt: new Date().toISOString() });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+
+    res.json({ synced: true, matches: allMatches.length, ceramica: allMatches.filter(m => m.is_ceramica_match).length, season: SEASON, updatedAt: new Date().toISOString() });
+  } catch (err) {
+    console.error('sync/matches', err);
+    res.status(500).json({ error: err.message });
+  }
 });
 
+// ── Top Scorers ────────────────────────────────────────────────────────────
 syncRouter.post('/topscorers', async (_req, res) => {
   try {
     const { query } = getSQL();
-    const { data: response, season: s } = await apiFootballWithFallback(
-      ss => `/players/topscorers?league=${LEAGUE_ID}&season=${ss}`
-    );
-    const top10 = response.slice(0, 10);
-    const rows = top10.map((item, i) => `${i+1}. ${item.player.name} (${item.statistics[0].team.name}) – ${item.statistics[0].goals.total} goals`).join('\n');
+    // Use standings data + results to derive top scorers
+    const results = await flashscore(`${EPL_PATH}/${SEASON}/results?page=1`).catch(() => []);
+
+    // Count goals per player from match events (limited data from standings events)
+    // We'll create a news article about the current standings leaders
+    const standings = await flashscore(`${EPL_PATH}/${SEASON}/standings`).catch(() => []);
+    const top5 = (Array.isArray(standings) ? standings : []).slice(0, 5);
+    const rows = top5.map((t, i) => `${i+1}. ${t.teamName} — ${t.points} pts (${t.goals})`).join('\n');
+
+    const title = `Egyptian Premier League ${SEASON} Standings Update`;
+    const excerpt = top5[0] ? `${top5[0].teamName} leads with ${top5[0].points} points` : 'Updated standings';
+
     await query(
       `INSERT INTO news (title,excerpt,content,category,is_club_news,is_featured,is_breaking,status,featured_image,published_at,tags,views)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
-      [`EPL Top Scorers ${s}/${s+1}`, `${top10[0]?.player?.name} leads with ${top10[0]?.statistics?.[0]?.goals?.total} goals.`,
-       `TOP SCORERS\n\n${rows}`, 'statistics', true, false, false, 'published',
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+       ON CONFLICT DO NOTHING`,
+      [title, excerpt, `EGYPTIAN PREMIER LEAGUE ${SEASON}\n\nTOP STANDINGS\n\n${rows}`,
+       'statistics', true, false, false, 'published',
        'https://images.unsplash.com/photo-1431324155629-1a6deb1dec8d?w=800',
-       new Date().toISOString(), ['top scorers','EPL'], 0],
+       new Date().toISOString(), JSON.stringify(['standings', 'EPL', SEASON]), 0],
     );
-    res.json({ synced: true, topScorers: top10.length, updatedAt: new Date().toISOString() });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+
+    res.json({ synced: true, season: SEASON, updatedAt: new Date().toISOString() });
+  } catch (err) {
+    console.error('sync/topscorers', err);
+    res.status(500).json({ error: err.message });
+  }
 });
 
+// ── Sync All ──────────────────────────────────────────────────────────────
 syncRouter.post('/all', async (req, res) => {
   const results = {};
-  const base = `${req.protocol}://${req.get('host')}${req.baseUrl.replace('/sync','')}`;
-  for (const name of ['standings','squad','matches','topscorers']) {
+  const base = `${req.protocol}://${req.get('host')}${req.baseUrl.replace('/sync', '')}`;
+  for (const name of ['standings', 'squad', 'matches', 'topscorers']) {
     try {
-      const r = await fetch(`${base}/sync/${name}`, { method:'POST', headers:{'content-type':'application/json'} });
+      const r = await fetch(`${base}/sync/${name}`, { method: 'POST', headers: { 'content-type': 'application/json' } });
       results[name] = await r.json();
     } catch (err) { results[name] = { error: err.message }; }
   }
@@ -597,8 +673,19 @@ router.use('/sync', syncRouter);
 
 // ── LIVE ──────────────────────────────────────────────────────────────────────
 router.get('/live', async (_req, res) => {
-  try { res.json(await apiFootball(`/fixtures?live=all&league=${LEAGUE_ID}`)); }
-  catch (err) { res.status(500).json({ error: err.message }); }
+  try {
+    const data = await flashscore(`/api/flashscore/football/egypt:${EGYPT_ID}/${EPL_SLUG}:${EPL_ID}/live`);
+    res.json(data);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ── EPL Live (all matches today) ─────────────────────────────────────────────
+router.get('/live/all', async (_req, res) => {
+  try {
+    const data = await flashscore(`/api/flashscore/football/live?tz=2`);
+    const egypt = Array.isArray(data) ? data.filter(m => m.tournamentTemplateId === EPL_ID) : [];
+    res.json(egypt);
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 // ── CRUD TABLES ───────────────────────────────────────────────────────────────
