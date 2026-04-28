@@ -658,10 +658,21 @@ function AdminPanelContent() {
                 <div className="bg-gray-900 border border-white/10 rounded-2xl p-6">
                   <h3 className="text-white font-bold mb-4">Quick Actions</h3>
                   <div className="flex flex-wrap gap-3">
-                    {[['Add News','news'],['Add Match','matches'],['Add Player','players'],['Manage Members','members'],['API Sync','sync']].map(([l,t]) => (
-                      <Button key={t} onClick={() => setTab(t)} variant="outline" className="border-white/10 text-white/70 hover:bg-white/5 rounded-xl">
+                    {[
+                      ['Add News',       'news',    'bg-purple-600 hover:bg-purple-500',          Newspaper],
+                      ['Add Match',      'matches', 'bg-green-700 hover:bg-green-600',             Calendar],
+                      ['Add Player',     'players', 'bg-[#1B2852] hover:bg-[#243570]',             Users],
+                      ['Manage Members', 'members', 'bg-[#FFB81C] hover:bg-yellow-400 text-[#1B2852]', Crown],
+                      ['API Sync',       'sync',    'bg-[#C8102E] hover:bg-red-600',               Database],
+                    ].map(([l, t, cls, Icon]) => (
+                      <button
+                        key={t}
+                        onClick={() => setTab(t)}
+                        className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-white transition-all ${cls}`}
+                      >
+                        <Icon className="w-4 h-4" />
                         {l}
-                      </Button>
+                      </button>
                     ))}
                   </div>
                 </div>
