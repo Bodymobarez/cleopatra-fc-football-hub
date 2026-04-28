@@ -13,35 +13,89 @@ const isCeramica = (name) =>
 const LIVE_STAGE_IDS   = new Set(['12','13','38','2','6','31','32']);
 const HT_STAGE_IDS     = new Set(['40','41']);
 
-// ── Live minute ticker ──────────────────────────────────────────
-function useLiveMinute(match) {
-  const [minute, setMinute] = useState(match.minute ?? null);
+// ── Live clock ticker (seconds precision) ───────────────────────
+function useLiveClock(match) {
+  const [clock, setClock] = useState({ min: null, sec: null });
 
   useEffect(() => {
-    if (match.status !== 'live') { setMinute(match.minute); return; }
+    if (match.status !== 'live') { setClock({ min: match.minute ?? null, sec: null }); return; }
 
     const compute = () => {
       const su = parseInt(match.stage_start_utime || 0);
-      if (!su) { setMinute(match.minute); return; }
-      const now = Math.floor(Date.now() / 1000);
-      const elapsed = Math.max(0, now - su);
+      if (!su) { setClock({ min: match.minute ?? null, sec: null }); return; }
+
+      const now    = Date.now() / 1000;
+      const elapsedSec = Math.max(0, now - su);
       const isSecondHalf = String(match.stage_id) === '13';
-      const base = isSecondHalf ? 45 : 0;
-      const max  = isSecondHalf ? 90 : 45;
-      setMinute(Math.min(base + Math.floor(elapsed / 60) + 1, max + 5)); // +5 for injury time
+      const baseMin = isSecondHalf ? 45 : 0;
+      const maxMin  = isSecondHalf ? 95 : 45; // allow 5 min injury time
+
+      const rawMin = baseMin + Math.floor(elapsedSec / 60) + 1;
+      const sec    = Math.floor(elapsedSec % 60);
+      setClock({ min: Math.min(rawMin, maxMin), sec });
     };
 
     compute();
-    const id = setInterval(compute, 15000); // refresh every 15s
+    const id = setInterval(compute, 1000); // tick every second
     return () => clearInterval(id);
   }, [match.status, match.stage_start_utime, match.stage_id, match.minute]);
 
-  return minute;
+  return clock;
+}
+
+// ── Status badge for a live match ───────────────────────────────
+function LiveBadge({ match, clock, isArabic }) {
+  const isLive = match.status === 'live';
+  const isHT   = match.status === 'halftime';
+  const isFT   = match.status === 'finished';
+  const isSecondHalf = String(match.stage_id) === '13';
+
+  if (isHT) {
+    return (
+      <span className="flex items-center gap-1.5 px-2 py-0.5 bg-yellow-500/20 border border-yellow-400/40 rounded-full shrink-0">
+        <span className="w-1.5 h-1.5 rounded-full bg-yellow-400" />
+        <span className="text-yellow-300 font-black text-[11px]">
+          {isArabic ? 'استراحة' : 'Half Time'}
+        </span>
+      </span>
+    );
+  }
+
+  if (isLive) {
+    const { min, sec } = clock;
+    const pad = (n) => String(n ?? 0).padStart(2, '0');
+    const timeStr = min != null
+      ? `${min}:${pad(sec)}`
+      : (isArabic ? 'مباشر' : 'LIVE');
+
+    return (
+      <span className="flex items-center gap-1.5 shrink-0">
+        <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+        <span className="text-red-400 font-black text-sm tabular-nums">{timeStr}</span>
+        {isSecondHalf && (
+          <span className="text-[9px] text-white/30 font-bold uppercase">
+            {isArabic ? 'ش٢' : '2H'}
+          </span>
+        )}
+      </span>
+    );
+  }
+
+  if (isFT) {
+    return <span className="text-xs text-white/50 font-medium">{isArabic ? 'انتهت' : 'FT'}</span>;
+  }
+
+  return (
+    <span className="text-xs text-white/40 flex items-center gap-1">
+      <Clock className="w-3 h-3" />
+      {new Date(match.date).toLocaleTimeString(isArabic ? 'ar-EG' : 'en-US', { hour: '2-digit', minute: '2-digit' })}
+    </span>
+  );
 }
 
 // ── Match Card ──────────────────────────────────────────────────
 function MatchCard({ match, index, isArabic }) {
-  const minute = useLiveMinute(match);
+  const clock = useLiveClock(match);
   const isLive = match.status === 'live';
   const isHT   = match.status === 'halftime';
   const isFT   = match.status === 'finished';
@@ -62,42 +116,7 @@ function MatchCard({ match, index, isArabic }) {
       {/* Header */}
       <div className="flex items-center justify-between mb-3">
         <span className="text-[10px] text-white/40 truncate max-w-[140px]">{match.competition}</span>
-
-        {isLive && (
-          <span className="flex items-center gap-1.5 shrink-0">
-            <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-            <AnimatePresence mode="wait">
-              <motion.span
-                key={minute}
-                initial={{ y: -6, opacity: 0 }}
-                animate={{ y: 0, opacity: 1 }}
-                exit={{ y: 6, opacity: 0 }}
-                transition={{ duration: 0.2 }}
-                className="text-red-400 font-black text-sm tabular-nums"
-              >
-                {minute != null ? `${minute}'` : (isArabic ? 'مباشر' : 'LIVE')}
-              </motion.span>
-            </AnimatePresence>
-          </span>
-        )}
-
-        {isHT && (
-          <span className="flex items-center gap-1 text-yellow-400 text-xs font-bold">
-            <span className="w-2 h-2 rounded-full bg-yellow-400" />
-            {isArabic ? 'ن.و' : 'HT'}
-          </span>
-        )}
-
-        {isFT && (
-          <span className="text-xs text-white/50 font-medium">{isArabic ? 'انتهت' : 'FT'}</span>
-        )}
-
-        {!isLive && !isHT && !isFT && (
-          <span className="text-xs text-white/40 flex items-center gap-1">
-            <Clock className="w-3 h-3" />
-            {new Date(match.date).toLocaleTimeString(isArabic ? 'ar-EG' : 'en-US', { hour: '2-digit', minute: '2-digit' })}
-          </span>
-        )}
+        <LiveBadge match={match} clock={clock} isArabic={isArabic} />
       </div>
 
       {/* Teams + Scores */}
