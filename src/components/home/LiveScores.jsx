@@ -3,8 +3,10 @@ import { motion } from 'framer-motion';
 import { Activity, ChevronRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
+import { useLanguage } from '@/components/LanguageContext';
 
 export default function LiveScores({ matches = [] }) {
+  const { isArabic } = useLanguage();
   const liveMatches = matches.filter(m => m.status === 'live' || m.status === 'halftime');
 
   return (
@@ -13,18 +15,18 @@ export default function LiveScores({ matches = [] }) {
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <Activity className="w-5 h-5 text-red-500" />
-            <span className="text-white font-semibold">Live Scores</span>
+            <span className="text-white font-semibold">{isArabic ? 'النتائج المباشرة' : 'Live Scores'}</span>
             {liveMatches.length > 0 && (
               <span className="px-2 py-0.5 bg-red-500 text-white text-xs font-bold rounded-full">
-                {liveMatches.length} LIVE
+                {liveMatches.length} {isArabic ? 'مباشر' : 'LIVE'}
               </span>
             )}
           </div>
-          <Link 
+          <Link
             to={createPageUrl('MatchCenter')}
             className="text-[#FFB81C] text-sm flex items-center gap-1 hover:gap-2 transition-all"
           >
-            Match Center <ChevronRight className="w-4 h-4" />
+            {isArabic ? 'مركز المباريات' : 'Match Center'} <ChevronRight className="w-4 h-4" />
           </Link>
         </div>
 
@@ -43,51 +45,45 @@ export default function LiveScores({ matches = [] }) {
                   <span className="flex items-center gap-1.5 text-xs">
                     <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
                     <span className="text-red-400 font-medium">
-                      {match.status === 'halftime' ? 'HT' : `${match.minute}'`}
+                      {match.status === 'halftime'
+                        ? (isArabic ? 'ن.و' : 'HT')
+                        : `${match.minute ?? ''}'`}
                     </span>
                   </span>
                 ) : match.status === 'finished' ? (
-                  <span className="text-xs text-white/50">FT</span>
+                  <span className="text-xs text-white/50">{isArabic ? 'انتهت' : 'FT'}</span>
                 ) : (
                   <span className="text-xs text-white/50">
-                    {new Date(match.date).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+                    {new Date(match.date).toLocaleTimeString(isArabic ? 'ar-EG' : 'en-US', { hour: '2-digit', minute: '2-digit' })}
                   </span>
                 )}
               </div>
 
               <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className="w-6 h-6 rounded bg-white/10 flex items-center justify-center">
-                      {match.home_logo ? (
-                        <img src={match.home_logo} alt="" className="w-4 h-4 object-contain" />
-                      ) : (
-                        <span className="text-[8px] font-bold text-white">{match.home_team?.slice(0, 2)}</span>
-                      )}
+                {[
+                  { logo: match.home_team_logo || match.home_logo, name: match.home_team, score: match.home_score },
+                  { logo: match.away_team_logo || match.away_logo, name: match.away_team, score: match.away_score },
+                ].map((team, i) => (
+                  <div key={i} className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="w-6 h-6 rounded bg-white/10 flex items-center justify-center">
+                        {team.logo
+                          ? <img src={team.logo} alt="" className="w-4 h-4 object-contain" />
+                          : <span className="text-[8px] font-bold text-white">{team.name?.slice(0, 2)}</span>}
+                      </div>
+                      <span className="text-white text-sm font-medium truncate max-w-[140px]">{team.name}</span>
                     </div>
-                    <span className="text-white text-sm font-medium truncate max-w-[140px]">{match.home_team}</span>
+                    <span className="text-white font-bold">{team.score ?? '-'}</span>
                   </div>
-                  <span className="text-white font-bold">{match.home_score ?? '-'}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className="w-6 h-6 rounded bg-white/10 flex items-center justify-center">
-                      {match.away_logo ? (
-                        <img src={match.away_logo} alt="" className="w-4 h-4 object-contain" />
-                      ) : (
-                        <span className="text-[8px] font-bold text-white">{match.away_team?.slice(0, 2)}</span>
-                      )}
-                    </div>
-                    <span className="text-white text-sm font-medium truncate max-w-[140px]">{match.away_team}</span>
-                  </div>
-                  <span className="text-white font-bold">{match.away_score ?? '-'}</span>
-                </div>
+                ))}
               </div>
             </motion.div>
           ))}
 
           {matches.length === 0 && (
-            <div className="text-white/50 text-sm py-4">No matches today</div>
+            <div className="text-white/50 text-sm py-4">
+              {isArabic ? 'لا توجد مباريات اليوم' : 'No matches today'}
+            </div>
           )}
         </div>
       </div>

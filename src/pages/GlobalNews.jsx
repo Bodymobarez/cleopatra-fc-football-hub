@@ -8,18 +8,7 @@ import { format } from 'date-fns';
 import { Clock, Eye, Search, Globe, Trophy } from 'lucide-react';
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-
-const leagues = [
-  { value: 'all', label: 'All News', icon: Globe },
-  { value: 'premier_league', label: 'Premier League', color: 'bg-purple-600' },
-  { value: 'la_liga', label: 'La Liga', color: 'bg-orange-500' },
-  { value: 'serie_a', label: 'Serie A', color: 'bg-blue-600' },
-  { value: 'bundesliga', label: 'Bundesliga', color: 'bg-red-600' },
-  { value: 'champions_league', label: 'Champions League', color: 'bg-indigo-600' },
-  { value: 'world_cup', label: 'World Cup', color: 'bg-[#FFB81C]' },
-  { value: 'egyptian_league', label: 'Egyptian League', color: 'bg-[#C8102E]' },
-  { value: 'african_football', label: 'African Football', color: 'bg-green-600' },
-];
+import { useLanguage } from '@/components/LanguageContext';
 
 const categoryColors = {
   premier_league: 'bg-purple-600 text-white',
@@ -34,8 +23,21 @@ const categoryColors = {
 };
 
 export default function GlobalNews() {
+  const { isArabic } = useLanguage();
   const [activeLeague, setActiveLeague] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
+
+  const leagues = [
+    { value: 'all',             label: isArabic ? 'كل الأخبار' : 'All News',          icon: Globe },
+    { value: 'premier_league',  label: isArabic ? 'الدوري الإنجليزي' : 'Premier League',  color: 'bg-purple-600' },
+    { value: 'la_liga',         label: isArabic ? 'الدوري الإسباني' : 'La Liga',           color: 'bg-orange-500' },
+    { value: 'serie_a',         label: isArabic ? 'الدوري الإيطالي' : 'Serie A',            color: 'bg-blue-600' },
+    { value: 'bundesliga',      label: isArabic ? 'الدوري الألماني' : 'Bundesliga',         color: 'bg-red-600' },
+    { value: 'champions_league',label: isArabic ? 'دوري الأبطال' : 'Champions League',      color: 'bg-indigo-600' },
+    { value: 'world_cup',       label: isArabic ? 'كأس العالم' : 'World Cup',              color: 'bg-[#FFB81C]' },
+    { value: 'egyptian_league', label: isArabic ? 'الدوري المصري' : 'Egyptian League',      color: 'bg-[#C8102E]' },
+    { value: 'african_football',label: isArabic ? 'كرة إفريقيا' : 'African Football',      color: 'bg-green-600' },
+  ];
 
   const { data: news = [], isLoading } = useQuery({
     queryKey: ['globalNews'],
@@ -68,17 +70,19 @@ export default function GlobalNews() {
           >
             <Globe className="w-16 h-16 text-[#FFB81C] mx-auto mb-6" />
             <h1 className="text-5xl md:text-6xl font-black text-white mb-4">
-              Global Football <span className="text-[#FFB81C]">News</span>
+              {isArabic ? 'أخبار كرة القدم' : 'Global Football'} <span className="text-[#FFB81C]">{isArabic ? 'العالمية' : 'News'}</span>
             </h1>
             <p className="text-white/70 text-lg mb-8 max-w-2xl mx-auto">
-              Comprehensive coverage of football leagues, tournaments, and competitions worldwide
+              {isArabic
+                ? 'تغطية شاملة للدوريات والبطولات والمسابقات الكروية حول العالم'
+                : 'Comprehensive coverage of football leagues, tournaments, and competitions worldwide'}
             </p>
 
             {/* Search */}
             <div className="relative max-w-xl mx-auto">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
               <Input
-                placeholder="Search global football news..."
+                placeholder={isArabic ? 'ابحث في أخبار كرة القدم...' : 'Search global football news...'}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-12 h-14 bg-white/10 border-white/20 text-white placeholder:text-white/40 text-lg"
@@ -153,7 +157,7 @@ export default function GlobalNews() {
                         <div className="flex items-center justify-between text-xs text-gray-400">
                           <span className="flex items-center gap-1">
                             <Clock className="w-3 h-3" />
-                            {article.published_at ? format(new Date(article.published_at), 'MMM d, yyyy') : 'Recent'}
+                            {article.published_at ? format(new Date(article.published_at), 'MMM d, yyyy') : (isArabic ? 'حديثاً' : 'Recent')}
                           </span>
                           {article.views > 0 && (
                             <span className="flex items-center gap-1">
@@ -171,8 +175,8 @@ export default function GlobalNews() {
           ) : (
             <div className="text-center py-20">
               <Globe className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-              <p className="text-gray-400 text-lg">No global football news found</p>
-              <p className="text-gray-400 text-sm mt-2">Try selecting a different league or adjusting your search</p>
+              <p className="text-gray-400 text-lg">{isArabic ? 'لا توجد أخبار كروية' : 'No global football news found'}</p>
+              <p className="text-gray-400 text-sm mt-2">{isArabic ? 'جرّب اختيار دوري آخر أو تعديل البحث' : 'Try selecting a different league or adjusting your search'}</p>
             </div>
           )}
         </div>

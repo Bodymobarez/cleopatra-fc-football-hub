@@ -24,6 +24,26 @@ export default function News() {
   const [category, setCategory] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
 
+  const categories = isArabic ? [
+    { value: 'all',            label: 'كل الأخبار' },
+    { value: 'club_news',      label: 'أخبار النادي' },
+    { value: 'match_report',   label: 'تقارير المباريات' },
+    { value: 'transfers',      label: 'الانتقالات' },
+    { value: 'injuries',       label: 'الإصابات' },
+    { value: 'analysis',       label: 'تحليل' },
+    { value: 'global_football',label: 'كرة دولية' },
+    { value: 'egyptian_league',label: 'الدوري المصري' },
+  ] : [
+    { value: 'all',            label: 'All News' },
+    { value: 'club_news',      label: 'Club News' },
+    { value: 'match_report',   label: 'Match Reports' },
+    { value: 'transfers',      label: 'Transfers' },
+    { value: 'injuries',       label: 'Injuries' },
+    { value: 'analysis',       label: 'Analysis' },
+    { value: 'global_football',label: 'Global Football' },
+    { value: 'egyptian_league',label: 'Egyptian League' },
+  ];
+
   const { data: news = [], isLoading } = useQuery({
     queryKey: ['news'],
     queryFn: () => ceramicaCleopatra.entities.News.filter({ status: 'published' }, '-published_at', 50),
@@ -134,7 +154,7 @@ export default function News() {
                           {article.views > 0 && (
                             <span className="flex items-center gap-1">
                               <Eye className="w-4 h-4" />
-                              {article.views.toLocaleString()} views
+                              {article.views.toLocaleString()} {isArabic ? 'مشاهدة' : 'views'}
                             </span>
                           )}
                         </div>
@@ -153,7 +173,7 @@ export default function News() {
         <div className="max-w-7xl mx-auto">
           <h2 className="text-2xl font-bold text-[#0a1628] mb-6 flex items-center gap-3">
             <span className="w-1.5 h-8 bg-[#0a1628] rounded-full" />
-            Latest Articles
+            {isArabic ? 'أحدث المقالات' : 'Latest Articles'}
             <span className="text-gray-400 text-lg font-normal">({filteredNews.length})</span>
           </h2>
 
@@ -196,10 +216,10 @@ export default function News() {
                         <div className="flex items-center justify-between text-xs text-gray-400">
                           <span className="flex items-center gap-1">
                             <Clock className="w-3 h-3" />
-                            {article.published_at ? format(new Date(article.published_at), 'MMM d') : 'Recent'}
+                            {article.published_at ? format(new Date(article.published_at), 'MMM d') : (isArabic ? 'حديثاً' : 'Recent')}
                           </span>
                           <span className="flex items-center gap-1 text-[#d4af37] font-medium">
-                            Read More <ChevronRight className="w-3 h-3" />
+                            {isArabic ? 'اقرأ المزيد' : 'Read More'} <ChevronRight className="w-3 h-3" />
                           </span>
                         </div>
                       </div>

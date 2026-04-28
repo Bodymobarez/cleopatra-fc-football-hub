@@ -1,4 +1,5 @@
 import React from 'react';
+import { useLanguage } from '@/components/LanguageContext';
 import { ceramicaCleopatra } from '@/api/ceramicaCleopatraClient';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
@@ -26,6 +27,7 @@ const categoryColors = {
 };
 
 export default function NewsDetail() {
+  const { isArabic } = useLanguage();
   const urlParams = new URLSearchParams(window.location.search);
   const articleId = urlParams.get('id');
   const queryClient = useQueryClient();
@@ -79,10 +81,10 @@ export default function NewsDetail() {
     return (
       <div className="min-h-screen bg-gray-50 pt-20 flex items-center justify-center">
         <div className="text-center">
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Article not found</h2>
-          <p className="text-gray-500 mb-4">The article you're looking for doesn't exist.</p>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">{isArabic ? 'المقال غير موجود' : 'Article not found'}</h2>
+          <p className="text-gray-500 mb-4">{isArabic ? 'المقال الذي تبحث عنه غير موجود.' : "The article you're looking for doesn't exist."}</p>
           <Link to={createPageUrl('News')} className="text-[#d4af37] font-medium">
-            ← Back to News
+            {isArabic ? '→ العودة للأخبار' : '← Back to News'}
           </Link>
         </div>
       </div>
@@ -107,7 +109,7 @@ export default function NewsDetail() {
               className="inline-flex items-center gap-2 text-white/70 hover:text-white mb-4 transition-colors"
             >
               <ArrowLeft className="w-4 h-4" />
-              Back to News
+              {isArabic ? 'العودة للأخبار' : 'Back to News'}
             </Link>
             <motion.div
               initial={{ opacity: 0, y: 20 }}
@@ -134,12 +136,12 @@ export default function NewsDetail() {
                 )}
                 <span className="flex items-center gap-1">
                   <Clock className="w-4 h-4" />
-                  {article.published_at ? format(new Date(article.published_at), 'MMMM d, yyyy') : 'Recent'}
+                  {article.published_at ? format(new Date(article.published_at), 'MMMM d, yyyy') : (isArabic ? 'حديثاً' : 'Recent')}
                 </span>
                 {article.views > 0 && (
                   <span className="flex items-center gap-1">
                     <Eye className="w-4 h-4" />
-                    {article.views.toLocaleString()} views
+                    {article.views.toLocaleString()} {isArabic ? 'مشاهدة' : 'views'}
                   </span>
                 )}
               </div>
@@ -211,7 +213,7 @@ export default function NewsDetail() {
             <div className="mt-16">
               <h3 className="text-2xl font-bold text-[#0a1628] mb-6 flex items-center gap-3">
                 <span className="w-1.5 h-8 bg-[#d4af37] rounded-full" />
-                Related Articles
+                {isArabic ? 'مقالات ذات صلة' : 'Related Articles'}
               </h3>
               <div className="grid md:grid-cols-3 gap-6">
                 {related.map((news) => (

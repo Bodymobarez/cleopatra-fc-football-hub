@@ -4,15 +4,17 @@ import { useQuery } from '@tanstack/react-query';
 import { ensureArray } from '@/utils';
 import { motion } from 'framer-motion';
 import { Play, Image, Film, ExternalLink } from 'lucide-react';
-
-const TABS = [
-  { id: 'all',    label: 'All' },
-  { id: 'video',  label: 'Videos' },
-  { id: 'image',  label: 'Photos' },
-];
+import { useLanguage } from '@/components/LanguageContext';
 
 export default function Media() {
+  const { isArabic } = useLanguage();
   const [activeTab, setActiveTab] = useState('all');
+
+  const TABS = [
+    { id: 'all',   label: isArabic ? 'الكل'      : 'All' },
+    { id: 'video', label: isArabic ? 'الفيديوهات' : 'Videos' },
+    { id: 'image', label: isArabic ? 'الصور'      : 'Photos' },
+  ];
 
   const { data: media = [], isLoading } = useQuery({
     queryKey: ['media', activeTab],
@@ -32,13 +34,15 @@ export default function Media() {
           <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }}>
             <div className="inline-flex items-center gap-2 bg-[#FFB81C]/20 border border-[#FFB81C]/30 rounded-full px-4 py-1 mb-6">
               <Film className="w-4 h-4 text-[#FFB81C]" />
-              <span className="text-[#FFB81C] text-sm font-semibold">MEDIA CENTER</span>
+              <span className="text-[#FFB81C] text-sm font-semibold">
+                {isArabic ? 'مركز الوسائط' : 'MEDIA CENTER'}
+              </span>
             </div>
             <h1 className="text-5xl md:text-7xl font-black text-white mb-4">
-              Photos & <span className="text-[#FFB81C]">Videos</span>
+              {isArabic ? 'صور' : 'Photos'} & <span className="text-[#FFB81C]">{isArabic ? 'فيديوهات' : 'Videos'}</span>
             </h1>
             <p className="text-white/60 text-lg">
-              The best moments from Ceramica Cleopatra FC
+              {isArabic ? 'أفضل اللحظات من نادي سيراميكا كليوباترا' : 'The best moments from Ceramica Cleopatra FC'}
             </p>
           </motion.div>
         </div>
@@ -77,7 +81,9 @@ export default function Media() {
           ) : media.length === 0 ? (
             <div className="text-center py-24">
               <Film className="w-20 h-20 text-white/20 mx-auto mb-6" />
-              <p className="text-white/40 text-xl">No media content yet</p>
+              <p className="text-white/40 text-xl">
+                {isArabic ? 'لا يوجد محتوى إعلامي بعد' : 'No media content yet'}
+              </p>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -90,19 +96,12 @@ export default function Media() {
                   transition={{ delay: index * 0.05 }}
                   className="group relative overflow-hidden rounded-2xl bg-white/5 border border-white/10 hover:border-[#FFB81C]/50 transition-all"
                 >
-                  {/* Thumbnail */}
                   <div className="aspect-video overflow-hidden bg-gray-900">
                     {item.thumbnail_url ? (
-                      <img
-                        src={item.thumbnail_url}
-                        alt={item.title || ''}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                      />
+                      <img src={item.thumbnail_url} alt={item.title || ''} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center">
-                        {item.type === 'video'
-                          ? <Film className="w-12 h-12 text-white/20" />
-                          : <Image className="w-12 h-12 text-white/20" />}
+                        {item.type === 'video' ? <Film className="w-12 h-12 text-white/20" /> : <Image className="w-12 h-12 text-white/20" />}
                       </div>
                     )}
                     {item.type === 'video' && (
@@ -113,30 +112,23 @@ export default function Media() {
                       </div>
                     )}
                   </div>
-
-                  {/* Info */}
                   <div className="p-4">
                     <div className="flex items-start justify-between gap-2">
                       <h3 className="text-white font-semibold text-sm line-clamp-2">
-                        {item.title || 'Untitled'}
+                        {item.title || (isArabic ? 'بلا عنوان' : 'Untitled')}
                       </h3>
                       {item.url && (
-                        <a
-                          href={item.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-[#FFB81C] hover:opacity-80 shrink-0 mt-0.5"
-                        >
+                        <a href={item.url} target="_blank" rel="noopener noreferrer" className="text-[#FFB81C] hover:opacity-80 shrink-0 mt-0.5">
                           <ExternalLink className="w-4 h-4" />
                         </a>
                       )}
                     </div>
                     <span className={`inline-block mt-2 text-xs px-2 py-0.5 rounded-full ${
-                      item.type === 'video'
-                        ? 'bg-[#FFB81C]/20 text-[#FFB81C]'
-                        : 'bg-blue-500/20 text-blue-400'
+                      item.type === 'video' ? 'bg-[#FFB81C]/20 text-[#FFB81C]' : 'bg-blue-500/20 text-blue-400'
                     }`}>
-                      {item.type === 'video' ? '▶ Video' : '📷 Photo'}
+                      {item.type === 'video'
+                        ? (isArabic ? '▶ فيديو' : '▶ Video')
+                        : (isArabic ? '📷 صورة' : '📷 Photo')}
                     </span>
                   </div>
                 </motion.div>

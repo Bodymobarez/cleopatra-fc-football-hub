@@ -4,6 +4,7 @@ import { ceramicaCleopatra } from '@/api/ceramicaCleopatraClient';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
+import { useLanguage } from '@/components/LanguageContext';
 import {
   LayoutDashboard, Users, Calendar, Newspaper, Trophy, Film,
   MessageSquare, Settings, RefreshCw, LogOut, Shield, TrendingUp,
@@ -18,9 +19,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 // ─── Redirect if not admin ─────────────────────────────────────────────────
 function RequireAdmin({ children }) {
   const { user, isAdmin, isLoadingAuth } = useAuth();
+  const { isArabic } = useLanguage();
   if (isLoadingAuth) return <div className="min-h-screen bg-gray-950 flex items-center justify-center"><div className="w-8 h-8 border-2 border-[#FFB81C] border-t-transparent rounded-full animate-spin" /></div>;
-  if (!user)    return <div className="min-h-screen bg-gray-950 flex items-center justify-center text-white">Please <a href="/Login" className="text-[#FFB81C] mx-1 underline">login</a> first.</div>;
-  if (!isAdmin) return <div className="min-h-screen bg-gray-950 flex items-center justify-center text-white">Admin access required.</div>;
+  if (!user)    return <div className="min-h-screen bg-gray-950 flex items-center justify-center text-white">{isArabic ? 'يرجى' : 'Please'} <a href="/Login" className="text-[#FFB81C] mx-1 underline">{isArabic ? 'تسجيل الدخول' : 'login'}</a> {isArabic ? 'أولاً.' : 'first.'}</div>;
+  if (!isAdmin) return <div className="min-h-screen bg-gray-950 flex items-center justify-center text-white">{isArabic ? 'مطلوب صلاحيات الأدمن.' : 'Admin access required.'}</div>;
   return children;
 }
 
@@ -43,7 +45,10 @@ function StatCard({ icon: Icon, label, value, color, sub }) {
 }
 
 // ─── Generic Table CRUD ─────────────────────────────────────────────────────
-function CRUDTable({ title, queryKey, fetchFn, columns, renderForm, emptyMsg = 'No data' }) {
+function CRUDTable({ title, queryKey, fetchFn, columns, renderForm, emptyMsg }) {
+  const { isArabic } = useLanguage();
+  const defaultEmpty = isArabic ? 'لا توجد بيانات' : 'No data';
+  const resolvedEmpty = emptyMsg || defaultEmpty;
   const qc = useQueryClient();
   const [search, setSearch] = useState('');
   const [editing, setEditing] = useState(null);
@@ -61,8 +66,8 @@ function CRUDTable({ title, queryKey, fetchFn, columns, renderForm, emptyMsg = '
 
   const deleteMut = useMutation({
     mutationFn: (id) => ceramicaCleopatra.entities[queryKey]?.delete(id) || fetch(`/api/${queryKey}/${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${localStorage.getItem('cc_token')}` } }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: [queryKey] }); toast.success('Deleted'); },
-    onError: () => toast.error('Delete failed'),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: [queryKey] }); toast.success(isArabic ? 'تم الحذف' : 'Deleted'); },
+    onError: () => toast.error(isArabic ? 'فشل الحذف' : 'Delete failed'),
   });
 
   return (
@@ -72,13 +77,13 @@ function CRUDTable({ title, queryKey, fetchFn, columns, renderForm, emptyMsg = '
         <div className="flex items-center gap-3">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
-            <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search…"
+            <Input value={search} onChange={e => setSearch(e.target.value)} placeholder={isArabic ? 'بحث…' : 'Search…'}
               className="pl-9 bg-white/5 border-white/10 text-white w-48 rounded-xl" />
           </div>
           {renderForm && (
             <Button onClick={() => { setEditing(null); setShowForm(true); }}
               className="bg-[#FFB81C] text-[#1B2852] font-bold rounded-xl">
-              <Plus className="w-4 h-4 mr-1" /> Add New
+              <Plus className="w-4 h-4 mr-1" /> {isArabic ? 'إضافة جديد' : 'Add New'}
             </Button>
           )}
         </div>
@@ -87,7 +92,7 @@ function CRUDTable({ title, queryKey, fetchFn, columns, renderForm, emptyMsg = '
       {isLoading ? (
         <div className="space-y-2">{[...Array(5)].map((_,i) => <div key={i} className="h-14 bg-white/5 rounded-xl animate-pulse" />)}</div>
       ) : filtered.length === 0 ? (
-        <div className="text-center py-16 text-white/30">{emptyMsg}</div>
+        <div className="text-center py-16 text-white/30">{resolvedEmpty}</div>
       ) : (
         <div className="bg-gray-900 border border-white/10 rounded-2xl overflow-hidden">
           <div className="overflow-x-auto">
@@ -97,7 +102,7 @@ function CRUDTable({ title, queryKey, fetchFn, columns, renderForm, emptyMsg = '
                   {columns.map(c => (
                     <th key={c.key} className="text-left px-4 py-3 text-[#FFB81C] font-bold">{c.label}</th>
                   ))}
-                  {renderForm && <th className="px-4 py-3 text-[#FFB81C] font-bold text-right">Actions</th>}
+                  {renderForm && <th className="px-4 py-3 text-[#FFB81C] font-bold text-right">{isArabic ? 'إجراءات' : 'Actions'}</th>}
                 </tr>
               </thead>
               <tbody>
@@ -115,7 +120,7 @@ function CRUDTable({ title, queryKey, fetchFn, columns, renderForm, emptyMsg = '
                             className="text-blue-400 hover:text-blue-300 p-1.5 rounded-lg hover:bg-blue-500/10">
                             <Edit2 className="w-3.5 h-3.5" />
                           </button>
-                          <button onClick={() => { if (confirm('Delete?')) deleteMut.mutate(row.id); }}
+                          <button onClick={() => { if (confirm(isArabic ? 'تأكيد الحذف؟' : 'Delete?')) deleteMut.mutate(row.id); }}
                             className="text-red-400 hover:text-red-300 p-1.5 rounded-lg hover:bg-red-500/10">
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
@@ -143,7 +148,7 @@ function CRUDTable({ title, queryKey, fetchFn, columns, renderForm, emptyMsg = '
               className="bg-gray-900 border border-white/10 rounded-2xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto"
             >
               <div className="flex items-center justify-between mb-6">
-                <h3 className="text-lg font-black text-white">{editing ? 'Edit' : 'Add'} {title.slice(0,-1)}</h3>
+                <h3 className="text-lg font-black text-white">{editing ? (isArabic ? 'تعديل' : 'Edit') : (isArabic ? 'إضافة' : 'Add')} {title.slice(0,-1)}</h3>
                 <button onClick={() => setShowForm(false)} className="text-white/40 hover:text-white">
                   <X className="w-5 h-5" />
                 </button>
@@ -163,16 +168,23 @@ function CRUDTable({ title, queryKey, fetchFn, columns, renderForm, emptyMsg = '
 
 // ─── News Form ─────────────────────────────────────────────────────────────
 function NewsForm({ data, onSave, onClose }) {
+  const { isArabic } = useLanguage();
   const [form, setForm] = useState(data || { title:'', excerpt:'', content:'', category:'club_news', status:'published', featured_image:'', is_featured:false, is_breaking:false, is_club_news:true });
   const qc = useQueryClient();
   const mut = useMutation({
     mutationFn: (f) => data ? ceramicaCleopatra.entities.News.update(data.id, f) : ceramicaCleopatra.entities.News.create({ ...f, published_at: new Date().toISOString(), views: 0 }),
-    onSuccess: () => { toast.success('Saved!'); onSave(); },
-    onError: () => toast.error('Save failed'),
+    onSuccess: () => { toast.success(isArabic ? 'تم الحفظ!' : 'Saved!'); onSave(); },
+    onError: () => toast.error(isArabic ? 'فشل الحفظ' : 'Save failed'),
   });
+  const fields = isArabic
+    ? [['title','العنوان','text'],['excerpt','المقتطف','text'],['featured_image','رابط الصورة','text'],['category','الفئة','text']]
+    : [['title','Title','text'],['excerpt','Excerpt','text'],['featured_image','Image URL','text'],['category','Category','text']];
+  const checkLabels = isArabic
+    ? [['is_featured','مميز'],['is_breaking','عاجل'],['is_club_news','أخبار النادي']]
+    : [['is_featured','Featured'],['is_breaking','Breaking'],['is_club_news','Club News']];
   return (
     <div className="space-y-4">
-      {[['title','Title','text'],['excerpt','Excerpt','text'],['featured_image','Image URL','text'],['category','Category','text']].map(([k,l,t]) => (
+      {fields.map(([k,l,t]) => (
         <div key={k}>
           <label className="block text-white/60 text-sm mb-1">{l}</label>
           <Input type={t} value={form[k] || ''} onChange={e => setForm(p => ({...p,[k]:e.target.value}))}
@@ -180,12 +192,12 @@ function NewsForm({ data, onSave, onClose }) {
         </div>
       ))}
       <div>
-        <label className="block text-white/60 text-sm mb-1">Content</label>
+        <label className="block text-white/60 text-sm mb-1">{isArabic ? 'المحتوى' : 'Content'}</label>
         <textarea value={form.content || ''} onChange={e => setForm(p => ({...p, content: e.target.value}))}
           rows={6} className="w-full bg-white/5 border border-white/10 text-white rounded-xl p-3 text-sm resize-none focus:outline-none focus:border-[#FFB81C]" />
       </div>
       <div className="flex flex-wrap gap-4">
-        {[['is_featured','Featured'],['is_breaking','Breaking'],['is_club_news','Club News']].map(([k,l]) => (
+        {checkLabels.map(([k,l]) => (
           <label key={k} className="flex items-center gap-2 text-white/70 text-sm cursor-pointer">
             <input type="checkbox" checked={!!form[k]} onChange={e => setForm(p => ({...p,[k]:e.target.checked}))}
               className="w-4 h-4 accent-[#FFB81C]" />
@@ -194,9 +206,9 @@ function NewsForm({ data, onSave, onClose }) {
         ))}
       </div>
       <div className="flex gap-3 pt-2">
-        <Button onClick={onClose} variant="outline" className="flex-1 border-white/10 text-white/60 rounded-xl">Cancel</Button>
+        <Button onClick={onClose} variant="outline" className="flex-1 border-white/10 text-white/60 rounded-xl">{isArabic ? 'إلغاء' : 'Cancel'}</Button>
         <Button onClick={() => mut.mutate(form)} disabled={mut.isPending} className="flex-1 bg-[#FFB81C] text-[#1B2852] font-bold rounded-xl">
-          {mut.isPending ? 'Saving…' : <><Save className="w-4 h-4 mr-1" />Save</>}
+          {mut.isPending ? (isArabic ? 'جاري الحفظ…' : 'Saving…') : <><Save className="w-4 h-4 mr-1" />{isArabic ? 'حفظ' : 'Save'}</>}
         </Button>
       </div>
     </div>
@@ -205,16 +217,23 @@ function NewsForm({ data, onSave, onClose }) {
 
 // ─── Match Form ────────────────────────────────────────────────────────────
 function MatchForm({ data, onSave, onClose }) {
+  const { isArabic } = useLanguage();
   const [form, setForm] = useState(data || { home_team:'', away_team:'', date:'', venue:'', status:'scheduled', home_score:0, away_score:0, competition:'Egyptian Premier League', is_ceramica_match:true });
   const mut = useMutation({
     mutationFn: (f) => data ? ceramicaCleopatra.entities.Match.update(data.id, f) : ceramicaCleopatra.entities.Match.create(f),
-    onSuccess: () => { toast.success('Saved!'); onSave(); },
-    onError: () => toast.error('Save failed'),
+    onSuccess: () => { toast.success(isArabic ? 'تم الحفظ!' : 'Saved!'); onSave(); },
+    onError: () => toast.error(isArabic ? 'فشل الحفظ' : 'Save failed'),
   });
+  const matchFields = isArabic
+    ? [['home_team','الفريق المضيف'],['away_team','الفريق الضيف'],['competition','البطولة'],['venue','الملعب']]
+    : [['home_team','Home Team'],['away_team','Away Team'],['competition','Competition'],['venue','Venue']];
+  const statusOptions = isArabic
+    ? [{v:'scheduled',l:'مجدولة'},{v:'finished',l:'انتهت'},{v:'live',l:'مباشر'},{v:'postponed',l:'مؤجلة'},{v:'cancelled',l:'ملغاة'}]
+    : [{v:'scheduled',l:'scheduled'},{v:'finished',l:'finished'},{v:'live',l:'live'},{v:'postponed',l:'postponed'},{v:'cancelled',l:'cancelled'}];
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-4">
-        {[['home_team','Home Team'],['away_team','Away Team'],['competition','Competition'],['venue','Venue']].map(([k,l]) => (
+        {matchFields.map(([k,l]) => (
           <div key={k}>
             <label className="block text-white/60 text-sm mb-1">{l}</label>
             <Input value={form[k] || ''} onChange={e => setForm(p => ({...p,[k]:e.target.value}))}
@@ -222,32 +241,32 @@ function MatchForm({ data, onSave, onClose }) {
           </div>
         ))}
         <div>
-          <label className="block text-white/60 text-sm mb-1">Date & Time</label>
+          <label className="block text-white/60 text-sm mb-1">{isArabic ? 'التاريخ والوقت' : 'Date & Time'}</label>
           <Input type="datetime-local" value={form.date?.slice(0,16) || ''} onChange={e => setForm(p => ({...p, date: new Date(e.target.value).toISOString()}))}
             className="bg-white/5 border-white/10 text-white rounded-xl" />
         </div>
         <div>
-          <label className="block text-white/60 text-sm mb-1">Status</label>
+          <label className="block text-white/60 text-sm mb-1">{isArabic ? 'الحالة' : 'Status'}</label>
           <select value={form.status} onChange={e => setForm(p => ({...p, status: e.target.value}))}
             className="w-full bg-white/5 border border-white/10 text-white rounded-xl px-3 py-2 text-sm">
-            {['scheduled','finished','live','postponed','cancelled'].map(s => <option key={s} value={s}>{s}</option>)}
+            {statusOptions.map(s => <option key={s.v} value={s.v}>{s.l}</option>)}
           </select>
         </div>
         {form.status === 'finished' && <>
-          <div><label className="block text-white/60 text-sm mb-1">Home Score</label>
+          <div><label className="block text-white/60 text-sm mb-1">{isArabic ? 'أهداف المضيف' : 'Home Score'}</label>
             <Input type="number" min="0" value={form.home_score ?? 0} onChange={e => setForm(p => ({...p, home_score: parseInt(e.target.value)||0}))} className="bg-white/5 border-white/10 text-white rounded-xl" /></div>
-          <div><label className="block text-white/60 text-sm mb-1">Away Score</label>
+          <div><label className="block text-white/60 text-sm mb-1">{isArabic ? 'أهداف الضيف' : 'Away Score'}</label>
             <Input type="number" min="0" value={form.away_score ?? 0} onChange={e => setForm(p => ({...p, away_score: parseInt(e.target.value)||0}))} className="bg-white/5 border-white/10 text-white rounded-xl" /></div>
         </>}
       </div>
       <label className="flex items-center gap-2 text-white/70 text-sm cursor-pointer">
         <input type="checkbox" checked={!!form.is_ceramica_match} onChange={e => setForm(p => ({...p, is_ceramica_match: e.target.checked}))} className="w-4 h-4 accent-[#FFB81C]" />
-        Ceramica Match
+        {isArabic ? 'مباراة سيراميكا' : 'Ceramica Match'}
       </label>
       <div className="flex gap-3 pt-2">
-        <Button onClick={onClose} variant="outline" className="flex-1 border-white/10 text-white/60 rounded-xl">Cancel</Button>
+        <Button onClick={onClose} variant="outline" className="flex-1 border-white/10 text-white/60 rounded-xl">{isArabic ? 'إلغاء' : 'Cancel'}</Button>
         <Button onClick={() => mut.mutate(form)} disabled={mut.isPending} className="flex-1 bg-[#FFB81C] text-[#1B2852] font-bold rounded-xl">
-          {mut.isPending ? 'Saving…' : <><Save className="w-4 h-4 mr-1" />Save</>}
+          {mut.isPending ? (isArabic ? 'جاري الحفظ…' : 'Saving…') : <><Save className="w-4 h-4 mr-1" />{isArabic ? 'حفظ' : 'Save'}</>}
         </Button>
       </div>
     </div>
@@ -256,42 +275,52 @@ function MatchForm({ data, onSave, onClose }) {
 
 // ─── Player Form ───────────────────────────────────────────────────────────
 function PlayerForm({ data, onSave, onClose }) {
+  const { isArabic } = useLanguage();
   const [form, setForm] = useState(data || { name:'', number:'', position:'Midfielder', position_detail:'', nationality:'Egyptian', photo_url:'', status:'available', is_captain:false });
   const mut = useMutation({
     mutationFn: (f) => data ? ceramicaCleopatra.entities.Player.update(data.id, f) : ceramicaCleopatra.entities.Player.create(f),
-    onSuccess: () => { toast.success('Saved!'); onSave(); },
-    onError: () => toast.error('Save failed'),
+    onSuccess: () => { toast.success(isArabic ? 'تم الحفظ!' : 'Saved!'); onSave(); },
+    onError: () => toast.error(isArabic ? 'فشل الحفظ' : 'Save failed'),
   });
+  const playerFields = isArabic
+    ? [['name','الاسم الكامل'],['number','رقم القميص'],['position_detail','تفاصيل المركز'],['nationality','الجنسية'],['photo_url','رابط الصورة']]
+    : [['name','Full Name'],['number','Jersey #'],['position_detail','Position Detail'],['nationality','Nationality'],['photo_url','Photo URL']];
+  const positions = isArabic
+    ? [{v:'Goalkeeper',l:'حارس مرمى'},{v:'Defender',l:'مدافع'},{v:'Midfielder',l:'لاعب وسط'},{v:'Forward',l:'مهاجم'}]
+    : [{v:'Goalkeeper',l:'Goalkeeper'},{v:'Defender',l:'Defender'},{v:'Midfielder',l:'Midfielder'},{v:'Forward',l:'Forward'}];
+  const statuses = isArabic
+    ? [{v:'available',l:'متاح'},{v:'injured',l:'مصاب'},{v:'suspended',l:'موقوف'}]
+    : [{v:'available',l:'available'},{v:'injured',l:'injured'},{v:'suspended',l:'suspended'}];
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-4">
-        {[['name','Full Name'],['number','Jersey #'],['position_detail','Position Detail'],['nationality','Nationality'],['photo_url','Photo URL']].map(([k,l]) => (
+        {playerFields.map(([k,l]) => (
           <div key={k} className={k === 'photo_url' ? 'col-span-2' : ''}>
             <label className="block text-white/60 text-sm mb-1">{l}</label>
             <Input value={form[k] || ''} onChange={e => setForm(p => ({...p,[k]:e.target.value}))} className="bg-white/5 border-white/10 text-white rounded-xl" />
           </div>
         ))}
         <div>
-          <label className="block text-white/60 text-sm mb-1">Position</label>
+          <label className="block text-white/60 text-sm mb-1">{isArabic ? 'المركز' : 'Position'}</label>
           <select value={form.position} onChange={e => setForm(p => ({...p, position: e.target.value}))} className="w-full bg-white/5 border border-white/10 text-white rounded-xl px-3 py-2 text-sm">
-            {['Goalkeeper','Defender','Midfielder','Forward'].map(s => <option key={s} value={s}>{s}</option>)}
+            {positions.map(s => <option key={s.v} value={s.v}>{s.l}</option>)}
           </select>
         </div>
         <div>
-          <label className="block text-white/60 text-sm mb-1">Status</label>
+          <label className="block text-white/60 text-sm mb-1">{isArabic ? 'الحالة' : 'Status'}</label>
           <select value={form.status} onChange={e => setForm(p => ({...p, status: e.target.value}))} className="w-full bg-white/5 border border-white/10 text-white rounded-xl px-3 py-2 text-sm">
-            {['available','injured','suspended'].map(s => <option key={s} value={s}>{s}</option>)}
+            {statuses.map(s => <option key={s.v} value={s.v}>{s.l}</option>)}
           </select>
         </div>
       </div>
       <label className="flex items-center gap-2 text-white/70 text-sm cursor-pointer">
         <input type="checkbox" checked={!!form.is_captain} onChange={e => setForm(p => ({...p, is_captain: e.target.checked}))} className="w-4 h-4 accent-[#FFB81C]" />
-        Club Captain
+        {isArabic ? 'قائد الفريق' : 'Club Captain'}
       </label>
       <div className="flex gap-3 pt-2">
-        <Button onClick={onClose} variant="outline" className="flex-1 border-white/10 text-white/60 rounded-xl">Cancel</Button>
+        <Button onClick={onClose} variant="outline" className="flex-1 border-white/10 text-white/60 rounded-xl">{isArabic ? 'إلغاء' : 'Cancel'}</Button>
         <Button onClick={() => mut.mutate(form)} disabled={mut.isPending} className="flex-1 bg-[#FFB81C] text-[#1B2852] font-bold rounded-xl">
-          {mut.isPending ? 'Saving…' : <><Save className="w-4 h-4 mr-1" />Save</>}
+          {mut.isPending ? (isArabic ? 'جاري الحفظ…' : 'Saving…') : <><Save className="w-4 h-4 mr-1" />{isArabic ? 'حفظ' : 'Save'}</>}
         </Button>
       </div>
     </div>
@@ -300,6 +329,7 @@ function PlayerForm({ data, onSave, onClose }) {
 
 // ─── Members Tab ────────────────────────────────────────────────────────────
 function MembersTab() {
+  const { isArabic } = useLanguage();
   const qc = useQueryClient();
   const [search, setSearch] = useState('');
   const [assignUser, setAssignUser] = useState(null);
@@ -317,15 +347,15 @@ function MembersTab() {
 
   const updateMut = useMutation({
     mutationFn: ({ id, data }) => ceramicaCleopatra.admin.updateUser(id, data),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['adminUsers'] }); toast.success('Updated!'); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['adminUsers'] }); toast.success(isArabic ? 'تم التحديث!' : 'Updated!'); },
   });
   const assignMut = useMutation({
     mutationFn: ({ id, plan_id }) => ceramicaCleopatra.admin.assignSub(id, { plan_id }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['adminUsers'] }); toast.success('Subscription assigned!'); setAssignUser(null); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['adminUsers'] }); toast.success(isArabic ? 'تم تعيين الاشتراك!' : 'Subscription assigned!'); setAssignUser(null); },
   });
   const deleteMut = useMutation({
     mutationFn: (id) => ceramicaCleopatra.admin.deleteUser(id),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['adminUsers'] }); toast.success('Deleted'); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['adminUsers'] }); toast.success(isArabic ? 'تم الحذف' : 'Deleted'); },
   });
 
   const users = Array.isArray(res) ? res : (res.data ?? []);
@@ -333,10 +363,10 @@ function MembersTab() {
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <h2 className="text-xl font-black text-white">Members <span className="text-white/30 font-normal text-base">({res.total ?? users.length})</span></h2>
+        <h2 className="text-xl font-black text-white">{isArabic ? 'الأعضاء' : 'Members'} <span className="text-white/30 font-normal text-base">({res.total ?? users.length})</span></h2>
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
-          <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search members…"
+          <Input value={search} onChange={e => setSearch(e.target.value)} placeholder={isArabic ? 'ابحث عن عضو…' : 'Search members…'}
             className="pl-9 bg-white/5 border-white/10 text-white w-56 rounded-xl" />
         </div>
       </div>
@@ -346,7 +376,7 @@ function MembersTab() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-white/10 bg-[#1B2852]/40">
-                {['Member','Role','Status','Plan','Joined','Actions'].map(h => (
+                {(isArabic ? ['العضو','الدور','الحالة','الخطة','تاريخ الانضمام','إجراءات'] : ['Member','Role','Status','Plan','Joined','Actions']).map(h => (
                   <th key={h} className="text-left px-4 py-3 text-[#FFB81C] font-bold">{h}</th>
                 ))}
               </tr>
@@ -372,7 +402,7 @@ function MembersTab() {
                   <td className="px-4 py-3">
                     {u.plan_name
                       ? <span className="text-xs font-bold px-2 py-1 rounded-full" style={{ backgroundColor: `${u.badge_color}20`, color: u.badge_color }}>{u.plan_name}</span>
-                      : <span className="text-white/30 text-xs">No plan</span>}
+                      : <span className="text-white/30 text-xs">{isArabic ? 'بلا خطة' : 'No plan'}</span>}
                   </td>
                   <td className="px-4 py-3 text-white/40 text-xs">
                     {new Date(u.created_at).toLocaleDateString()}
@@ -380,13 +410,13 @@ function MembersTab() {
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-1">
                       <button onClick={() => setAssignUser(u)} className="text-[#FFB81C] hover:opacity-80 p-1.5 rounded-lg hover:bg-[#FFB81C]/10 text-xs font-semibold">
-                        Assign Plan
+                        {isArabic ? 'تعيين خطة' : 'Assign Plan'}
                       </button>
-                      <button onClick={() => { if (confirm(`Ban ${u.full_name}?`)) updateMut.mutate({ id: u.id, data: { status: u.status === 'active' ? 'banned' : 'active' } }); }}
+                      <button onClick={() => { if (confirm(isArabic ? `حظر ${u.full_name}؟` : `Ban ${u.full_name}?`)) updateMut.mutate({ id: u.id, data: { status: u.status === 'active' ? 'banned' : 'active' } }); }}
                         className={`p-1.5 rounded-lg text-xs ${u.status === 'active' ? 'text-red-400 hover:bg-red-500/10' : 'text-green-400 hover:bg-green-500/10'}`}>
-                        {u.status === 'active' ? 'Ban' : 'Unban'}
+                        {u.status === 'active' ? (isArabic ? 'حظر' : 'Ban') : (isArabic ? 'رفع الحظر' : 'Unban')}
                       </button>
-                      <button onClick={() => { if (confirm('Delete user?')) deleteMut.mutate(u.id); }}
+                      <button onClick={() => { if (confirm(isArabic ? 'حذف المستخدم؟' : 'Delete user?')) deleteMut.mutate(u.id); }}
                         className="text-red-400 p-1.5 rounded-lg hover:bg-red-500/10">
                         <Trash2 className="w-3 h-3" />
                       </button>
@@ -407,22 +437,22 @@ function MembersTab() {
             onClick={e => e.target === e.currentTarget && setAssignUser(null)}>
             <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }} exit={{ scale: 0.9 }}
               className="bg-gray-900 border border-white/10 rounded-2xl p-6 w-full max-w-md">
-              <h3 className="text-lg font-black text-white mb-4">Assign Plan — {assignUser.full_name}</h3>
+              <h3 className="text-lg font-black text-white mb-4">{isArabic ? 'تعيين خطة —' : 'Assign Plan —'} {assignUser.full_name}</h3>
               <div className="space-y-2 mb-6">
                 {plans.map(p => (
                   <button key={p.id} onClick={() => setSelPlan(p.id)}
                     className={`w-full text-left p-3 rounded-xl border transition-all ${selPlan === p.id ? 'border-[#FFB81C] bg-[#FFB81C]/10' : 'border-white/10 hover:border-white/30'}`}>
                     <span className="text-white font-semibold">{p.name}</span>
-                    <span className="text-white/40 text-sm ml-2">— {p.price === 0 ? 'Free' : `${p.price} EGP`}</span>
+                    <span className="text-white/40 text-sm ml-2">— {p.price === 0 ? (isArabic ? 'مجاني' : 'Free') : `${p.price} ${isArabic ? 'جنيه' : 'EGP'}`}</span>
                   </button>
                 ))}
               </div>
               <div className="flex gap-3">
-                <Button onClick={() => setAssignUser(null)} variant="outline" className="flex-1 border-white/10 text-white/60 rounded-xl">Cancel</Button>
+                <Button onClick={() => setAssignUser(null)} variant="outline" className="flex-1 border-white/10 text-white/60 rounded-xl">{isArabic ? 'إلغاء' : 'Cancel'}</Button>
                 <Button onClick={() => assignMut.mutate({ id: assignUser.id, plan_id: selPlan })}
                   disabled={!selPlan || assignMut.isPending}
                   className="flex-1 bg-[#FFB81C] text-[#1B2852] font-bold rounded-xl">
-                  {assignMut.isPending ? 'Assigning…' : 'Assign Plan'}
+                  {assignMut.isPending ? (isArabic ? 'جاري التعيين…' : 'Assigning…') : (isArabic ? 'تعيين الخطة' : 'Assign Plan')}
                 </Button>
               </div>
             </motion.div>
@@ -435,6 +465,7 @@ function MembersTab() {
 
 // ─── Settings Tab ───────────────────────────────────────────────────────────
 function SettingsTab() {
+  const { isArabic } = useLanguage();
   const [settings, setSettings] = useState(null);
   const [saving, setSaving] = useState(false);
 
@@ -446,14 +477,23 @@ function SettingsTab() {
     setSaving(true);
     try {
       await ceramicaCleopatra.settings.save(settings);
-      toast.success('Settings saved!');
-    } catch { toast.error('Save failed'); }
+      toast.success(isArabic ? 'تم حفظ الإعدادات!' : 'Settings saved!');
+    } catch { toast.error(isArabic ? 'فشل الحفظ' : 'Save failed'); }
     setSaving(false);
   };
 
-  if (!settings) return <div className="text-white/40 text-center py-12">Loading settings…</div>;
+  if (!settings) return <div className="text-white/40 text-center py-12">{isArabic ? 'جاري تحميل الإعدادات…' : 'Loading settings…'}</div>;
 
-  const fields = [
+  const fields = isArabic ? [
+    ['site_name', 'اسم الموقع', 'text'],
+    ['hero_title', 'عنوان الصفحة الرئيسية', 'text'],
+    ['hero_subtitle', 'العنوان الفرعي', 'text'],
+    ['contact_email', 'البريد الإلكتروني للتواصل', 'email'],
+    ['social_facebook', 'رابط فيسبوك', 'url'],
+    ['social_twitter', 'رابط تويتر', 'url'],
+    ['social_instagram', 'رابط انستغرام', 'url'],
+    ['social_youtube', 'رابط يوتيوب', 'url'],
+  ] : [
     ['site_name', 'Site Name', 'text'],
     ['hero_title', 'Hero Title', 'text'],
     ['hero_subtitle', 'Hero Subtitle', 'text'],
@@ -464,9 +504,13 @@ function SettingsTab() {
     ['social_youtube', 'YouTube URL', 'url'],
   ];
 
+  const toggles = isArabic
+    ? [['registration_enabled','السماح بالتسجيل'],['maintenance_mode','وضع الصيانة']]
+    : [['registration_enabled','Allow Registrations'],['maintenance_mode','Maintenance Mode']];
+
   return (
     <div className="max-w-2xl space-y-5">
-      <h2 className="text-xl font-black text-white mb-6">Site Settings</h2>
+      <h2 className="text-xl font-black text-white mb-6">{isArabic ? 'إعدادات الموقع' : 'Site Settings'}</h2>
       {fields.map(([k, l]) => (
         <div key={k}>
           <label className="block text-white/60 text-sm mb-2">{l}</label>
@@ -478,7 +522,7 @@ function SettingsTab() {
         </div>
       ))}
       <div className="flex gap-4">
-        {[['registration_enabled','Allow Registrations'],['maintenance_mode','Maintenance Mode']].map(([k,l]) => (
+        {toggles.map(([k,l]) => (
           <label key={k} className="flex items-center gap-2 text-white/70 text-sm cursor-pointer">
             <input type="checkbox" checked={!!settings[k]} onChange={e => setSettings(p => ({...p,[k]:e.target.checked}))} className="w-4 h-4 accent-[#FFB81C]" />
             {l}
@@ -486,7 +530,7 @@ function SettingsTab() {
         ))}
       </div>
       <Button onClick={save} disabled={saving} className="bg-[#FFB81C] text-[#1B2852] font-bold rounded-xl px-8">
-        {saving ? 'Saving…' : <><Save className="w-4 h-4 mr-2" />Save Settings</>}
+        {saving ? (isArabic ? 'جاري الحفظ…' : 'Saving…') : <><Save className="w-4 h-4 mr-2" />{isArabic ? 'حفظ الإعدادات' : 'Save Settings'}</>}
       </Button>
     </div>
   );
@@ -494,6 +538,7 @@ function SettingsTab() {
 
 // ─── Sync Tab ────────────────────────────────────────────────────────────────
 function SyncTab() {
+  const { isArabic } = useLanguage();
   const [results, setResults] = useState({});
   const [loading, setLoading] = useState({});
 
@@ -503,10 +548,10 @@ function SyncTab() {
     try {
       const r = await fn();
       setResults(p => ({...p, [name]: { ok: true, ...r }}));
-      toast.success(`${name} synced!`);
+      toast.success(isArabic ? `تمت المزامنة!` : `${name} synced!`);
     } catch (err) {
       setResults(p => ({...p, [name]: { ok: false, error: err.message }}));
-      toast.error(`${name} failed`);
+      toast.error(isArabic ? 'فشلت المزامنة' : `${name} failed`);
     }
     setLoading(p => ({...p, [name]: false}));
   };
@@ -522,7 +567,7 @@ function SyncTab() {
 
   return (
     <div>
-      <h2 className="text-xl font-black text-white mb-6">API-Football Sync</h2>
+      <h2 className="text-xl font-black text-white mb-6">{isArabic ? 'مزامنة البيانات' : 'API-Football Sync'}</h2>
       <div className="grid md:grid-cols-2 gap-4 mb-6">
         {syncs.map(s => (
           <div key={s.id} className="bg-gray-900 border border-white/10 rounded-2xl p-5">
@@ -540,12 +585,12 @@ function SyncTab() {
               {loading[s.id]
                 ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />
                 : <Download className="w-4 h-4 mr-2" />}
-              {loading[s.id] ? 'Syncing…' : 'Sync Now'}
+              {loading[s.id] ? (isArabic ? 'جاري المزامنة…' : 'Syncing…') : (isArabic ? 'مزامنة الآن' : 'Sync Now')}
             </Button>
             {results[s.id] && (
               <div className={`mt-3 text-xs rounded-lg px-3 py-2 ${results[s.id].ok ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400'}`}>
                 {results[s.id].ok
-                  ? `✓ Synced — ${results[s.id].teams || results[s.id].players || results[s.id].matches || results[s.id].fixtures || results[s.id].articles || results[s.id].topScorers || 'done'} records`
+                  ? `✓ ${isArabic ? 'تمت المزامنة —' : 'Synced —'} ${results[s.id].teams || results[s.id].players || results[s.id].matches || results[s.id].fixtures || results[s.id].articles || results[s.id].topScorers || (isArabic ? 'تم' : 'done')} ${isArabic ? 'سجل' : 'records'}`
                   : `✗ ${results[s.id].error}`}
               </div>
             )}
@@ -561,15 +606,6 @@ function SyncTab() {
 }
 
 // ─── Main Admin Panel ────────────────────────────────────────────────────────
-const TABS = [
-  { id:'dashboard', label:'Dashboard', icon:LayoutDashboard },
-  { id:'news',      label:'News',      icon:Newspaper },
-  { id:'matches',   label:'Matches',   icon:Calendar },
-  { id:'players',   label:'Players',   icon:Users },
-  { id:'members',   label:'Members',   icon:Crown },
-  { id:'sync',      label:'API Sync',  icon:Database },
-  { id:'settings',  label:'Settings',  icon:Settings },
-];
 
 export default function AdminPanel() {
   return (
@@ -581,7 +617,18 @@ export default function AdminPanel() {
 
 function AdminPanelContent() {
   const { user, logout } = useAuth();
+  const { isArabic } = useLanguage();
   const [tab, setTab] = useState('dashboard');
+
+  const TABS = [
+    { id:'dashboard', label: isArabic ? 'لوحة التحكم' : 'Dashboard', icon:LayoutDashboard },
+    { id:'news',      label: isArabic ? 'الأخبار'      : 'News',      icon:Newspaper },
+    { id:'matches',   label: isArabic ? 'المباريات'    : 'Matches',   icon:Calendar },
+    { id:'players',   label: isArabic ? 'اللاعبون'     : 'Players',   icon:Users },
+    { id:'members',   label: isArabic ? 'الأعضاء'      : 'Members',   icon:Crown },
+    { id:'sync',      label: isArabic ? 'مزامنة API'   : 'API Sync',  icon:Database },
+    { id:'settings',  label: isArabic ? 'الإعدادات'    : 'Settings',  icon:Settings },
+  ];
 
   const { data: stats } = useQuery({
     queryKey: ['adminStats'],
@@ -599,7 +646,7 @@ function AdminPanelContent() {
             <img src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/695e73c9350940eda2779d4d/62a3057fb_Ceramica_Cleopatra_FC_logo.png"
               alt="Logo" className="h-10 w-auto" />
             <div>
-              <div className="text-white font-black text-sm leading-none">Admin Panel</div>
+              <div className="text-white font-black text-sm leading-none">{isArabic ? 'لوحة الإدارة' : 'Admin Panel'}</div>
               <div className="text-[#FFB81C] text-xs mt-0.5">Ceramica Cleopatra FC</div>
             </div>
           </div>
@@ -628,11 +675,11 @@ function AdminPanelContent() {
             </div>
             <div>
               <div className="text-white text-sm font-semibold truncate max-w-32">{user?.full_name}</div>
-              <div className="text-white/30 text-xs">Administrator</div>
+              <div className="text-white/30 text-xs">{isArabic ? 'مدير النظام' : 'Administrator'}</div>
             </div>
           </div>
           <button onClick={logout} className="w-full flex items-center gap-2 text-red-400 hover:text-red-300 text-sm px-3 py-2 rounded-xl hover:bg-red-500/10 transition-colors">
-            <LogOut className="w-4 h-4" /> Sign Out
+            <LogOut className="w-4 h-4" /> {isArabic ? 'تسجيل الخروج' : 'Sign Out'}
           </button>
         </div>
       </aside>
@@ -645,26 +692,26 @@ function AdminPanelContent() {
             {/* Dashboard */}
             {tab === 'dashboard' && (
               <div>
-                <h1 className="text-3xl font-black text-white mb-2">Dashboard</h1>
-                <p className="text-white/40 mb-8">Welcome back, {user?.full_name} 👋</p>
+                <h1 className="text-3xl font-black text-white mb-2">{isArabic ? 'لوحة التحكم' : 'Dashboard'}</h1>
+                <p className="text-white/40 mb-8">{isArabic ? `مرحباً، ${user?.full_name} 👋` : `Welcome back, ${user?.full_name} 👋`}</p>
                 <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
-                  <StatCard icon={Users}     label="Total Members"    value={stats?.total_users}    color="from-blue-500 to-blue-700" />
-                  <StatCard icon={Crown}     label="Active Subs"      value={stats?.active_members} color="from-[#FFB81C] to-yellow-600" />
-                  <StatCard icon={TrendingUp} label="Revenue (EGP)"   value={stats?.total_revenue ? `${Number(stats.total_revenue).toLocaleString()} LE` : '0 LE'} color="from-green-500 to-green-700" />
-                  <StatCard icon={Newspaper} label="News Articles"    value={stats?.total_news}     color="from-[#C8102E] to-red-700" />
-                  <StatCard icon={Calendar}  label="Matches"          value={stats?.total_matches}  color="from-purple-500 to-purple-700" />
-                  <StatCard icon={Shield}    label="Players"          value={stats?.total_players}  color="from-[#1B2852] to-blue-900" />
+                  <StatCard icon={Users}     label={isArabic ? 'إجمالي الأعضاء' : 'Total Members'}   value={stats?.total_users}    color="from-blue-500 to-blue-700" />
+                  <StatCard icon={Crown}     label={isArabic ? 'اشتراكات فعّالة' : 'Active Subs'}     value={stats?.active_members} color="from-[#FFB81C] to-yellow-600" />
+                  <StatCard icon={TrendingUp} label={isArabic ? 'الإيرادات (جنيه)' : 'Revenue (EGP)'} value={stats?.total_revenue ? `${Number(stats.total_revenue).toLocaleString()} ${isArabic ? 'جنيه' : 'LE'}` : `0 ${isArabic ? 'جنيه' : 'LE'}`} color="from-green-500 to-green-700" />
+                  <StatCard icon={Newspaper} label={isArabic ? 'مقالات الأخبار' : 'News Articles'}   value={stats?.total_news}     color="from-[#C8102E] to-red-700" />
+                  <StatCard icon={Calendar}  label={isArabic ? 'المباريات' : 'Matches'}              value={stats?.total_matches}  color="from-purple-500 to-purple-700" />
+                  <StatCard icon={Shield}    label={isArabic ? 'اللاعبون' : 'Players'}               value={stats?.total_players}  color="from-[#1B2852] to-blue-900" />
                 </div>
                 <div className="bg-gray-900 border border-white/10 rounded-2xl p-6">
-                  <h3 className="text-white font-bold mb-4">Quick Actions</h3>
+                  <h3 className="text-white font-bold mb-4">{isArabic ? 'إجراءات سريعة' : 'Quick Actions'}</h3>
                   <div className="flex flex-wrap gap-3">
-                    {[
-                      ['Add News',       'news',    'bg-purple-600 hover:bg-purple-500',          Newspaper],
-                      ['Add Match',      'matches', 'bg-green-700 hover:bg-green-600',             Calendar],
-                      ['Add Player',     'players', 'bg-[#1B2852] hover:bg-[#243570]',             Users],
-                      ['Manage Members', 'members', 'bg-[#FFB81C] hover:bg-yellow-400 text-[#1B2852]', Crown],
-                      ['API Sync',       'sync',    'bg-[#C8102E] hover:bg-red-600',               Database],
-                    ].map(([l, t, cls, Icon]) => (
+                    {([
+                      [isArabic ? 'إضافة خبر'   : 'Add News',       'news',    'bg-purple-600 hover:bg-purple-500',          Newspaper],
+                      [isArabic ? 'إضافة مباراة' : 'Add Match',      'matches', 'bg-green-700 hover:bg-green-600',             Calendar],
+                      [isArabic ? 'إضافة لاعب'   : 'Add Player',     'players', 'bg-[#1B2852] hover:bg-[#243570]',             Users],
+                      [isArabic ? 'إدارة الأعضاء': 'Manage Members', 'members', 'bg-[#FFB81C] hover:bg-yellow-400 text-[#1B2852]', Crown],
+                      [isArabic ? 'مزامنة API'   : 'API Sync',       'sync',    'bg-[#C8102E] hover:bg-red-600',               Database],
+                    ]).map(([l, t, cls, Icon]) => (
                       <button
                         key={t}
                         onClick={() => setTab(t)}
@@ -682,15 +729,15 @@ function AdminPanelContent() {
             {/* News */}
             {tab === 'news' && (
               <CRUDTable
-                title="News Articles"
+                title={isArabic ? 'مقالات الأخبار' : 'News Articles'}
                 queryKey="news"
                 fetchFn={() => ceramicaCleopatra.entities.News.list('-published_at', 100)}
                 columns={[
-                  { key:'title', label:'Title', render: v => <span className="font-semibold text-white">{v?.slice(0,50)}</span> },
-                  { key:'category', label:'Category', render: v => <Badge className="text-xs">{v}</Badge> },
-                  { key:'status', label:'Status', render: v => <span className={`text-xs px-2 py-1 rounded-full ${v==='published'?'bg-green-500/20 text-green-400':'bg-yellow-500/20 text-yellow-400'}`}>{v}</span> },
-                  { key:'published_at', label:'Published', render: v => v ? new Date(v).toLocaleDateString() : '—' },
-                  { key:'views', label:'Views' },
+                  { key:'title', label: isArabic ? 'العنوان' : 'Title', render: v => <span className="font-semibold text-white">{v?.slice(0,50)}</span> },
+                  { key:'category', label: isArabic ? 'الفئة' : 'Category', render: v => <Badge className="text-xs">{v}</Badge> },
+                  { key:'status', label: isArabic ? 'الحالة' : 'Status', render: v => <span className={`text-xs px-2 py-1 rounded-full ${v==='published'?'bg-green-500/20 text-green-400':'bg-yellow-500/20 text-yellow-400'}`}>{isArabic ? (v === 'published' ? 'منشور' : 'مسودة') : v}</span> },
+                  { key:'published_at', label: isArabic ? 'تاريخ النشر' : 'Published', render: v => v ? new Date(v).toLocaleDateString() : '—' },
+                  { key:'views', label: isArabic ? 'المشاهدات' : 'Views' },
                 ]}
                 renderForm={(props) => <NewsForm {...props} />}
               />
@@ -699,15 +746,15 @@ function AdminPanelContent() {
             {/* Matches */}
             {tab === 'matches' && (
               <CRUDTable
-                title="Matches"
+                title={isArabic ? 'المباريات' : 'Matches'}
                 queryKey="matches"
                 fetchFn={() => ceramicaCleopatra.entities.Match.list('-date', 200)}
                 columns={[
-                  { key:'home_team', label:'Home', render: (_,r) => <span className="font-semibold text-white">{r.home_team} vs {r.away_team}</span> },
-                  { key:'date', label:'Date', render: v => v ? new Date(v).toLocaleDateString() : '—' },
-                  { key:'status', label:'Status', render: v => <span className={`text-xs px-2 py-1 rounded-full ${v==='finished'?'bg-blue-500/20 text-blue-400':v==='live'?'bg-green-500/20 text-green-400':'bg-gray-500/20 text-gray-400'}`}>{v}</span> },
-                  { key:'home_score', label:'Score', render: (_,r) => r.status==='finished' ? `${r.home_score} - ${r.away_score}` : '—' },
-                  { key:'competition', label:'Competition' },
+                  { key:'home_team', label: isArabic ? 'المباراة' : 'Home', render: (_,r) => <span className="font-semibold text-white">{r.home_team} {isArabic ? 'ضد' : 'vs'} {r.away_team}</span> },
+                  { key:'date', label: isArabic ? 'التاريخ' : 'Date', render: v => v ? new Date(v).toLocaleDateString() : '—' },
+                  { key:'status', label: isArabic ? 'الحالة' : 'Status', render: v => <span className={`text-xs px-2 py-1 rounded-full ${v==='finished'?'bg-blue-500/20 text-blue-400':v==='live'?'bg-green-500/20 text-green-400':'bg-gray-500/20 text-gray-400'}`}>{isArabic ? {scheduled:'مجدولة',finished:'انتهت',live:'مباشر',postponed:'مؤجلة',cancelled:'ملغاة'}[v] || v : v}</span> },
+                  { key:'home_score', label: isArabic ? 'النتيجة' : 'Score', render: (_,r) => r.status==='finished' ? `${r.home_score} - ${r.away_score}` : '—' },
+                  { key:'competition', label: isArabic ? 'البطولة' : 'Competition' },
                 ]}
                 renderForm={(props) => <MatchForm {...props} />}
               />
@@ -716,11 +763,11 @@ function AdminPanelContent() {
             {/* Players */}
             {tab === 'players' && (
               <CRUDTable
-                title="Players"
+                title={isArabic ? 'اللاعبون' : 'Players'}
                 queryKey="players"
                 fetchFn={() => ceramicaCleopatra.entities.Player.list('number', 100)}
                 columns={[
-                  { key:'name', label:'Player', render: (_,r) => (
+                  { key:'name', label: isArabic ? 'اللاعب' : 'Player', render: (_,r) => (
                     <div className="flex items-center gap-2">
                       <img src={r.photo_url} alt="" className="w-7 h-7 rounded-full bg-white/10 object-cover" onError={e=>e.target.style.display='none'} />
                       <span className="font-semibold text-white">{r.name}</span>
@@ -728,9 +775,9 @@ function AdminPanelContent() {
                     </div>
                   )},
                   { key:'number', label:'#', render: v => <span className="font-bold text-[#FFB81C]">#{v}</span> },
-                  { key:'position', label:'Position' },
-                  { key:'nationality', label:'Nationality' },
-                  { key:'status', label:'Status', render: v => <span className={`text-xs px-2 py-1 rounded-full ${v==='available'?'bg-green-500/20 text-green-400':'bg-red-500/20 text-red-400'}`}>{v}</span> },
+                  { key:'position', label: isArabic ? 'المركز' : 'Position' },
+                  { key:'nationality', label: isArabic ? 'الجنسية' : 'Nationality' },
+                  { key:'status', label: isArabic ? 'الحالة' : 'Status', render: v => <span className={`text-xs px-2 py-1 rounded-full ${v==='available'?'bg-green-500/20 text-green-400':'bg-red-500/20 text-red-400'}`}>{isArabic ? {available:'متاح',injured:'مصاب',suspended:'موقوف'}[v] || v : v}</span> },
                 ]}
                 renderForm={(props) => <PlayerForm {...props} />}
               />
