@@ -938,6 +938,131 @@ The match was played at ${venue} in Round ${round.replace('Round ', '')} of the 
       articlesCreated.push(title);
     }
 
+    // ── Egyptian League: round summaries from ALL EPL matches in DB ──────────────
+    try {
+      await query(`DELETE FROM news WHERE category = 'egyptian_league'`);
+      const allMatches = await query(
+        `SELECT * FROM matches WHERE status = 'finished' AND competition ILIKE '%Premier%' ORDER BY match_date DESC LIMIT 30`
+      );
+      const byRound = {};
+      for (const m of (Array.isArray(allMatches) ? allMatches : [])) {
+        const r = m.round || 'Unknown Round';
+        if (!byRound[r]) byRound[r] = [];
+        byRound[r].push(m);
+      }
+      const leagueImages = [
+        'https://images.unsplash.com/photo-1574629810360-7efbbe195018?w=800',
+        'https://images.unsplash.com/photo-1551958219-acbc595d816f?w=800',
+        'https://images.unsplash.com/photo-1508768787810-6adc1f613514?w=800',
+        'https://images.unsplash.com/photo-1579952363873-27f3bade9f55?w=800',
+      ];
+      let li = 0;
+      for (const [round, matches] of Object.entries(byRound).slice(0, 10)) {
+        const lines = matches.map(m =>
+          `${m.home_team} ${m.home_score ?? '?'} — ${m.away_score ?? '?'} ${m.away_team}`
+        ).join('\n');
+        const latestDate = matches.reduce((d, m) => {
+          const md = new Date(m.match_date || 0);
+          return md > d ? md : d;
+        }, new Date(0));
+
+        const title   = `الدوري المصري — ${round}: ملخص نتائج الجولة`;
+        const excerpt = `نتائج ${matches.length} مباريات في ${round} من الدوري المصري الممتاز موسم ${SEASON}.`;
+        const content = `ملخص الجولة — ${round}\n\nنتائج مباريات الدوري المصري الممتاز:\n\n${lines}\n\nشاهد التفاصيل الكاملة لكل مباراة في قسم المباريات.`;
+
+        await query(
+          `INSERT INTO news (title,excerpt,content,category,is_club_news,is_featured,is_breaking,status,featured_image,published_at,tags,views)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
+          [title, excerpt, content, 'egyptian_league', false, li === 0, false, 'published',
+           leagueImages[li % leagueImages.length], latestDate.toISOString(),
+           ['الدوري المصري', 'نتائج', round, SEASON], 0]
+        );
+        articlesCreated.push(title);
+        li++;
+      }
+    } catch (e) { console.error('sync/news egyptian_league:', e.message); }
+
+    // ── Injuries: from players table with status = 'injured' ─────────────────
+    try {
+      await query(`DELETE FROM news WHERE category = 'injuries'`);
+      const injuredPlayers = await query(
+        `SELECT * FROM players WHERE status = 'injured' ORDER BY updated_at DESC`
+      );
+      const injured = Array.isArray(injuredPlayers) ? injuredPlayers : [];
+      if (injured.length > 0) {
+        const names = injured.map(p => `• ${p.name} (${p.position || 'لاعب'})`).join('\n');
+        const title   = `تقرير إصابات سيراميكا كليوباترا — موسم ${SEASON}`;
+        const excerpt = `تحديث بأحدث إصابات لاعبي سيراميكا كليوباترا. ${injured.length} لاعب خارج عن الخدمة حالياً.`;
+        const content = `تقرير الإصابات — سيراميكا كليوباترا\n\nاللاعبون الغائبون حالياً بسبب الإصابة:\n\n${names}\n\nيتابع الجهاز الطبي حالة اللاعبين بشكل يومي ويتوقع عودة بعضهم قريباً.`;
+
+        await query(
+          `INSERT INTO news (title,excerpt,content,category,is_club_news,is_featured,is_breaking,status,featured_image,published_at,tags,views)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
+          [title, excerpt, content, 'injuries', true, false, true, 'published',
+           'https://images.unsplash.com/photo-1612872087720-bb876e2e67d1?w=800',
+           new Date().toISOString(), ['إصابات', 'سيراميكا', SEASON], 0]
+        );
+        articlesCreated.push(title);
+
+        // Individual injury updates
+        for (const p of injured.slice(0, 5)) {
+          const t2 = `إصابة ${p.name} — ${p.position || 'لاعب'} سيراميكا كليوباترا`;
+          const e2 = `غياب ${p.name} عن تدريبات وبطولات الفريق بسبب الإصابة.`;
+          const c2 = `تقرير إصابة\n\nأُعلن عن إصابة ${p.name}، ${p.position || 'لاعب'} سيراميكا كليوباترا. يتابع الجهاز الطبي حالة اللاعب وسيتم الإعلان عن موعد العودة لاحقاً.`;
+          await query(
+            `INSERT INTO news (title,excerpt,content,category,is_club_news,is_featured,is_breaking,status,featured_image,published_at,tags,views)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
+            [t2, e2, c2, 'injuries', true, false, false, 'published',
+             p.photo || 'https://images.unsplash.com/photo-1612872087720-bb876e2e67d1?w=800',
+             new Date().toISOString(), ['إصابة', p.name, SEASON], 0]
+          );
+          articlesCreated.push(t2);
+        }
+      }
+    } catch (e) { console.error('sync/news injuries:', e.message); }
+
+    // ── Analysis: from top scorers and standings ─────────────────────────────
+    try {
+      await query(`DELETE FROM news WHERE category = 'analysis'`);
+      const topPlayers = await query(
+        `SELECT * FROM players ORDER BY (stats->>'goals')::int DESC NULLS LAST LIMIT 10`
+      );
+      const top = Array.isArray(topPlayers) ? topPlayers : [];
+      if (top.length > 0) {
+        const scorerLines = top.filter(p => (p.stats?.goals || 0) > 0)
+          .map((p, i) => `${i + 1}. ${p.name} — ${p.stats?.goals || 0} هدف، ${p.stats?.assists || 0} تمريرة حاسمة`)
+          .join('\n');
+
+        if (scorerLines) {
+          const title   = `تحليل: أفضل هدافي سيراميكا كليوباترا موسم ${SEASON}`;
+          const excerpt = `تحليل إحصائي لأداء لاعبي سيراميكا كليوباترا في الدوري المصري موسم ${SEASON}.`;
+          const content = `تحليل الأداء — موسم ${SEASON}\n\nأفضل هدافي الفريق:\n\n${scorerLines}\n\nيواصل الفريق مسيرته في الدوري المصري الممتاز بأداء متميز من لاعبيه.`;
+
+          await query(
+            `INSERT INTO news (title,excerpt,content,category,is_club_news,is_featured,is_breaking,status,featured_image,published_at,tags,views)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
+            [title, excerpt, content, 'analysis', true, true, false, 'published',
+             'https://images.unsplash.com/photo-1543326727-cf6c39e8f84c?w=800',
+             new Date().toISOString(), ['تحليل', 'إحصائيات', 'هدافون', SEASON], 0]
+          );
+          articlesCreated.push(title);
+        }
+
+        // Formation/tactics analysis article
+        const taTitle   = `تحليل تكتيكي: نقاط قوة سيراميكا كليوباترا في الدوري المصري`;
+        const taExcerpt = `نظرة تحليلية على أسلوب لعب سيراميكا كليوباترا وأبرز نقاط القوة في التشكيل الحالي.`;
+        const taContent = `تحليل تكتيكي\n\nتستعرض سيراميكا كليوباترا أداءً متميزاً في الدوري المصري الممتاز موسم ${SEASON}. يعتمد الفريق على ضغط عالٍ وتحركات سريعة في الوسط لخلق فرص الهجوم.\n\nأبرز نقاط القوة:\n• متانة دفاعية عالية\n• خط وسط منظم\n• سرعة في التحول الهجومي\n\nيُعدّ الأداء الجماعي للفريق من أبرز مزايا المنظومة التكتيكية الحالية.`;
+        await query(
+          `INSERT INTO news (title,excerpt,content,category,is_club_news,is_featured,is_breaking,status,featured_image,published_at,tags,views)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
+          [taTitle, taExcerpt, taContent, 'analysis', true, false, false, 'published',
+           'https://images.unsplash.com/photo-1553778263-73a83bab9b0c?w=800',
+           new Date().toISOString(), ['تحليل', 'تكتيك', SEASON], 0]
+        );
+        articlesCreated.push(taTitle);
+      }
+    } catch (e) { console.error('sync/news analysis:', e.message); }
+
     res.json({ synced: true, articles: articlesCreated.length, titles: articlesCreated, updatedAt: new Date().toISOString() });
   } catch (err) {
     console.error('sync/news', err);
@@ -1294,6 +1419,73 @@ const EGYPT_TOURNAMENT_IDS = new Set([
 
 const LIVE_STAGE_IDS = new Set(['12','13','38','2','6','31','32']); // flashscore live stageIds
 const HT_STAGE_IDS   = new Set(['40','41']);
+
+// ─── RSS parser (no external deps) ───────────────────────────────────────────
+function parseRSS(xml) {
+  const items = [];
+  const itemRx = /<item>([\s\S]*?)<\/item>/g;
+  let m;
+  while ((m = itemRx.exec(xml)) !== null) {
+    const chunk = m[1];
+    const tag = (name) => {
+      const r = new RegExp(`<${name}[^>]*>(?:<!\\[CDATA\\[)?([\\s\\S]*?)(?:\\]\\]>)?<\\/${name}>`, 'i');
+      const x = r.exec(chunk);
+      return x ? x[1].trim() : '';
+    };
+    const thumbMatch = /<media:thumbnail[^>]*url="([^"]*)"/.exec(chunk);
+    items.push({
+      title:       tag('title'),
+      description: tag('description'),
+      link:        tag('link') || tag('guid'),
+      pubDate:     tag('pubDate'),
+      thumbnail:   thumbMatch ? thumbMatch[1] : '',
+    });
+  }
+  return items;
+}
+
+// ─── GET /news-feeds — live BBC Sport RSS (global football) ──────────────────
+router.get('/news-feeds', async (req, res) => {
+  try {
+    const { category = 'all' } = req.query;
+    const articles = [];
+
+    if (category === 'all' || category === 'global_football') {
+      // BBC Sport Football RSS
+      const rssUrl = 'https://feeds.bbci.co.uk/sport/football/rss.xml';
+      const rssText = await fetch(rssUrl, { headers: { 'User-Agent': 'Mozilla/5.0' } })
+        .then(r => r.text()).catch(() => '');
+      const items = parseRSS(rssText);
+
+      items.forEach((item, i) => {
+        if (!item.title) return;
+        const slug = Buffer.from(item.link || item.title).toString('base64').replace(/[^a-zA-Z0-9]/g, '').slice(0, 24);
+        articles.push({
+          id:            `bbc-${slug}`,
+          title:         item.title,
+          excerpt:       item.description,
+          content:       item.description,
+          category:      'global_football',
+          is_club_news:  false,
+          is_featured:   i === 0,
+          is_breaking:   false,
+          status:        'published',
+          featured_image: item.thumbnail || 'https://images.unsplash.com/photo-1517466787929-bc90951d0974?w=800&q=80',
+          published_at:  item.pubDate ? new Date(item.pubDate).toISOString() : new Date().toISOString(),
+          tags:          ['global', 'bbc', 'football'],
+          views:         0,
+          external_url:  item.link,
+          source:        'BBC Sport',
+        });
+      });
+    }
+
+    res.json({ data: articles, total: articles.length });
+  } catch (err) {
+    console.error('news-feeds', err);
+    res.status(500).json({ error: err.message });
+  }
+});
 
 router.get('/live-scores', async (_req, res) => {
   try {

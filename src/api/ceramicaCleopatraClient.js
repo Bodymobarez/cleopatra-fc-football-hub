@@ -92,6 +92,7 @@ export const ceramicaCleopatra = {
     syncAll:         () => apiFetch('POST', '/sync/all'),
   },
 
+  newsFeeds:        (cat)       => apiFetch('GET', `/news-feeds${cat ? `?category=${encodeURIComponent(cat)}` : ''}`),
   liveScores:       ()          => apiFetch('GET', '/live-scores'),
   ceramicaFixtures: ()          => apiFetch('GET', '/ceramica-fixtures'),
   matchDetails:     (eventId)   => apiFetch('GET', `/match-details/${eventId}`),

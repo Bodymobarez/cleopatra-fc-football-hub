@@ -40,7 +40,8 @@ function ArticleCard({ article, index, isArabic }) {
       viewport={{ once: true }}
       transition={{ delay: index * 0.04 }}
     >
-      <Link to={createPageUrl('NewsDetail') + `?id=${article.id}`} className="block group h-full">
+      {article.external_url ? (
+        <a href={article.external_url} target="_blank" rel="noopener noreferrer" className="block group h-full">
         <div className="h-full bg-white rounded-2xl overflow-hidden border border-gray-100 hover:border-[#FFB81C]/40 hover:shadow-2xl transition-all duration-300 flex flex-col">
           {/* Image */}
           <div className="relative h-52 overflow-hidden shrink-0">
@@ -88,7 +89,56 @@ function ArticleCard({ article, index, isArabic }) {
             </div>
           </div>
         </div>
-      </Link>
+        </a>
+      ) : (
+        <Link to={createPageUrl('NewsDetail') + `?id=${article.id}`} className="block group h-full">
+        <div className="h-full bg-white rounded-2xl overflow-hidden border border-gray-100 hover:border-[#FFB81C]/40 hover:shadow-2xl transition-all duration-300 flex flex-col">
+          {/* Image */}
+          <div className="relative h-52 overflow-hidden shrink-0">
+            <img
+              src={article.featured_image || fallback}
+              alt={article.title}
+              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+              onError={e => { e.target.src = fallback; }}
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+            <span className={`absolute top-3 left-3 px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider text-white ${catColor}`}>
+              {getCategoryLabel(article.category, isArabic)}
+            </span>
+            {article.is_featured && (
+              <span className="absolute top-3 right-3 px-2 py-1 bg-[#FFB81C] text-[#1B2852] text-[10px] font-black rounded-full uppercase">
+                {isArabic ? 'مميز' : 'Featured'}
+              </span>
+            )}
+          </div>
+          <div className="flex flex-col flex-1 p-5">
+            <h3 className="font-bold text-[#1B2852] text-base leading-snug mb-2 line-clamp-2 group-hover:text-[#C8102E] transition-colors">
+              {article.title}
+            </h3>
+            {article.excerpt && (
+              <p className="text-gray-500 text-sm line-clamp-2 mb-auto">{article.excerpt}</p>
+            )}
+            <div className="flex items-center justify-between text-xs text-gray-400 mt-4 pt-3 border-t border-gray-100">
+              <div className="flex items-center gap-3">
+                <span className="flex items-center gap-1">
+                  <Clock className="w-3 h-3" />
+                  {formatDate(article.published_at, isArabic, true)}
+                </span>
+                {article.views > 0 && (
+                  <span className="flex items-center gap-1">
+                    <Eye className="w-3 h-3" />
+                    {article.views.toLocaleString()}
+                  </span>
+                )}
+              </div>
+              <span className="flex items-center gap-1 text-[#FFB81C] font-semibold">
+                {isArabic ? 'اقرأ' : 'Read'} <ChevronRight className="w-3 h-3" />
+              </span>
+            </div>
+          </div>
+        </div>
+        </Link>
+      )}
     </motion.div>
   );
 }
@@ -105,79 +155,100 @@ function ArticleRow({ article, index, isArabic }) {
       viewport={{ once: true }}
       transition={{ delay: index * 0.03 }}
     >
-      <Link to={createPageUrl('NewsDetail') + `?id=${article.id}`} className="block group">
-        <div className="flex gap-4 p-4 bg-white rounded-2xl border border-gray-100 hover:border-[#FFB81C]/40 hover:shadow-lg transition-all">
-          <div className="w-28 h-20 rounded-xl overflow-hidden shrink-0">
-            <img
-              src={article.featured_image || fallback}
-              alt={article.title}
-              className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-              onError={e => { e.target.src = fallback; }}
-            />
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-1.5">
-              <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase text-white ${catColor}`}>
-                {getCategoryLabel(article.category, isArabic)}
-              </span>
-              <span className="text-gray-400 text-[10px] flex items-center gap-1">
-                <Clock className="w-2.5 h-2.5" />
-                {formatDate(article.published_at, isArabic, true)}
-              </span>
+      {article.external_url ? (
+        <a href={article.external_url} target="_blank" rel="noopener noreferrer" className="block group">
+          <div className="flex gap-4 p-4 bg-white rounded-2xl border border-gray-100 hover:border-[#FFB81C]/40 hover:shadow-lg transition-all">
+            <div className="w-28 h-20 rounded-xl overflow-hidden shrink-0">
+              <img src={article.featured_image || fallback} alt={article.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" onError={e => { e.target.src = fallback; }} />
             </div>
-            <h3 className="font-bold text-[#1B2852] text-sm leading-snug line-clamp-2 group-hover:text-[#C8102E] transition-colors">
-              {article.title}
-            </h3>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 mb-1.5">
+                <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase text-white ${catColor}`}>{getCategoryLabel(article.category, isArabic)}</span>
+                <span className="text-gray-400 text-[10px] flex items-center gap-1"><Clock className="w-2.5 h-2.5" />{formatDate(article.published_at, isArabic, true)}</span>
+                <span className="text-cyan-500 text-[9px] font-bold">{article.source || 'BBC'}</span>
+              </div>
+              <h3 className="font-bold text-[#1B2852] text-sm leading-snug line-clamp-2 group-hover:text-[#C8102E] transition-colors">{article.title}</h3>
+            </div>
+            <ChevronRight className="w-4 h-4 text-gray-300 group-hover:text-[#FFB81C] transition-colors shrink-0 self-center" />
           </div>
-          <ChevronRight className="w-4 h-4 text-gray-300 group-hover:text-[#FFB81C] transition-colors shrink-0 self-center" />
-        </div>
-      </Link>
+        </a>
+      ) : (
+        <Link to={createPageUrl('NewsDetail') + `?id=${article.id}`} className="block group">
+          <div className="flex gap-4 p-4 bg-white rounded-2xl border border-gray-100 hover:border-[#FFB81C]/40 hover:shadow-lg transition-all">
+            <div className="w-28 h-20 rounded-xl overflow-hidden shrink-0">
+              <img src={article.featured_image || fallback} alt={article.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" onError={e => { e.target.src = fallback; }} />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 mb-1.5">
+                <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase text-white ${catColor}`}>{getCategoryLabel(article.category, isArabic)}</span>
+                <span className="text-gray-400 text-[10px] flex items-center gap-1"><Clock className="w-2.5 h-2.5" />{formatDate(article.published_at, isArabic, true)}</span>
+              </div>
+              <h3 className="font-bold text-[#1B2852] text-sm leading-snug line-clamp-2 group-hover:text-[#C8102E] transition-colors">{article.title}</h3>
+            </div>
+            <ChevronRight className="w-4 h-4 text-gray-300 group-hover:text-[#FFB81C] transition-colors shrink-0 self-center" />
+          </div>
+        </Link>
+      )}
     </motion.div>
   );
 }
 
 /* ── Featured Hero Article ──────────────────────────────────── */
+function FeaturedHeroInner({ article, isArabic, fallback, catColor }) {
+  return (
+    <div className="relative h-[420px] md:h-[500px] rounded-3xl overflow-hidden shadow-2xl">
+      <img
+        src={article.featured_image || fallback}
+        alt={article.title}
+        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-1000"
+        onError={e => { e.target.src = fallback; }}
+      />
+      <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent" />
+      <div className="absolute bottom-0 left-0 right-0 p-8 md:p-10">
+        <div className="flex items-center gap-3 mb-4">
+          <span className={`px-3 py-1.5 rounded-full text-xs font-black uppercase text-white ${catColor}`}>
+            {getCategoryLabel(article.category, isArabic)}
+          </span>
+          <span className="text-white/50 text-sm">{formatDate(article.published_at, isArabic)}</span>
+          {article.source && <span className="text-cyan-400 text-xs font-bold">{article.source}</span>}
+        </div>
+        <h2 className="text-2xl md:text-4xl font-black text-white mb-3 leading-tight group-hover:text-[#FFB81C] transition-colors line-clamp-3">
+          {article.title}
+        </h2>
+        {article.excerpt && (
+          <p className="text-white/70 text-base line-clamp-2 mb-4 max-w-2xl">{article.excerpt}</p>
+        )}
+        <div className="flex items-center gap-4 text-white/50 text-sm">
+          {article.views > 0 && (
+            <span className="flex items-center gap-1.5">
+              <Eye className="w-4 h-4" />
+              {article.views.toLocaleString()} {isArabic ? 'مشاهدة' : 'views'}
+            </span>
+          )}
+          <span className="flex items-center gap-1.5 text-[#FFB81C] font-semibold">
+            {isArabic ? 'اقرأ التقرير الكامل' : 'Read full story'} <ChevronRight className="w-4 h-4" />
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function FeaturedHero({ article, isArabic }) {
   if (!article) return null;
   const fallback = 'https://images.unsplash.com/photo-1522778119026-d647f0596c20?w=1920&q=80';
   const catColor = CAT_COLOR[article.category] || 'bg-gray-500';
 
+  if (article.external_url) {
+    return (
+      <a href={article.external_url} target="_blank" rel="noopener noreferrer" className="block group mb-8">
+        <FeaturedHeroInner article={article} isArabic={isArabic} fallback={fallback} catColor={catColor} />
+      </a>
+    );
+  }
   return (
     <Link to={createPageUrl('NewsDetail') + `?id=${article.id}`} className="block group mb-8">
-      <div className="relative h-[420px] md:h-[500px] rounded-3xl overflow-hidden shadow-2xl">
-        <img
-          src={article.featured_image || fallback}
-          alt={article.title}
-          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-1000"
-          onError={e => { e.target.src = fallback; }}
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent" />
-        <div className="absolute bottom-0 left-0 right-0 p-8 md:p-10">
-          <div className="flex items-center gap-3 mb-4">
-            <span className={`px-3 py-1.5 rounded-full text-xs font-black uppercase text-white ${catColor}`}>
-              {getCategoryLabel(article.category, isArabic)}
-            </span>
-            <span className="text-white/50 text-sm">{formatDate(article.published_at, isArabic)}</span>
-          </div>
-          <h2 className="text-2xl md:text-4xl font-black text-white mb-3 leading-tight group-hover:text-[#FFB81C] transition-colors line-clamp-3">
-            {article.title}
-          </h2>
-          {article.excerpt && (
-            <p className="text-white/70 text-base line-clamp-2 mb-4 max-w-2xl">{article.excerpt}</p>
-          )}
-          <div className="flex items-center gap-4 text-white/50 text-sm">
-            {article.views > 0 && (
-              <span className="flex items-center gap-1.5">
-                <Eye className="w-4 h-4" />
-                {article.views.toLocaleString()} {isArabic ? 'مشاهدة' : 'views'}
-              </span>
-            )}
-            <span className="flex items-center gap-1.5 text-[#FFB81C] font-semibold">
-              {isArabic ? 'اقرأ التقرير الكامل' : 'Read full story'} <ChevronRight className="w-4 h-4" />
-            </span>
-          </div>
-        </div>
-      </div>
+      <FeaturedHeroInner article={article} isArabic={isArabic} fallback={fallback} catColor={catColor} />
     </Link>
   );
 }
@@ -189,12 +260,33 @@ export default function GlobalNews() {
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState('grid'); // 'grid' | 'list'
 
-  const { data: news = [], isLoading } = useQuery({
+  const { data: dbNews = [], isLoading } = useQuery({
     queryKey: ['news-all'],
-    queryFn: () => ceramicaCleopatra.entities.News.filter({ status: 'published' }, '-published_at', 100),
+    queryFn: () => ceramicaCleopatra.entities.News.filter({ status: 'published' }, '-published_at', 200),
     select: ensureArray,
     staleTime: 3 * 60 * 1000,
   });
+
+  // Live BBC RSS feed for global_football category
+  const { data: feedData } = useQuery({
+    queryKey: ['news-feeds-global'],
+    queryFn: () => ceramicaCleopatra.newsFeeds('global_football'),
+    select: (d) => ensureArray(d?.data ?? d),
+    staleTime: 5 * 60 * 1000,
+    retry: 1,
+  });
+
+  // Merge DB news + live RSS, dedup by id
+  const news = useMemo(() => {
+    const rssItems = feedData || [];
+    const combined = [...dbNews, ...rssItems];
+    const seen = new Set();
+    return combined.filter(a => {
+      if (seen.has(a.id)) return false;
+      seen.add(a.id);
+      return true;
+    }).sort((a, b) => new Date(b.published_at) - new Date(a.published_at));
+  }, [dbNews, feedData]);
 
   const filteredNews = useMemo(() => {
     return news.filter(a => {
