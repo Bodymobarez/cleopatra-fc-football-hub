@@ -1081,6 +1081,74 @@ makeCRUD(router, 'polls',    ['question','options','total_votes','is_active','cr
 makeCRUD(router, 'comments', ['content','author_name','status','news_id','created_date'], true);
 makeCRUD(router, 'standings',['competition','season','teams','created_date'], true);
 
+// ── Live Scores (direct proxy from Flashscore, no DB) ────────────────────────
+// Egyptian tournament IDs (main + relegation group + cup etc.)
+const EGYPT_TOURNAMENT_IDS = new Set([
+  '9QQBJ8Mn', // Premier League main
+  'oWnUDxkJ', // Premier League - Relegation Group (old)
+  '8djnQlDc', // Premier League - Relegation Group (current)
+  'xbpjAGxq', // template id fallback
+]);
+
+const LIVE_STAGE_IDS = new Set(['12','13','38','2','6','31','32']); // flashscore live stageIds
+const HT_STAGE_IDS   = new Set(['40','41']);
+
+router.get('/live-scores', async (_req, res) => {
+  try {
+    const raw = await flashscore('/api/flashscore/football/live');
+    const matches = (Array.isArray(raw) ? raw : []).filter(m => {
+      const tName = (m.tournamentName || '').toLowerCase();
+      return EGYPT_TOURNAMENT_IDS.has(m.tournamentId) || tName.includes('egypt');
+    });
+
+    const now = Math.floor(Date.now() / 1000);
+
+    const mapped = matches.map(m => {
+      const stageId = String(m.eventStageId || '');
+      const isLive = LIVE_STAGE_IDS.has(stageId) || m.eventStage === 'LIVE';
+      const isHT   = HT_STAGE_IDS.has(stageId)   || m.eventStage === 'HALFTIME';
+      const isFT   = m.eventStage === 'FINISHED'  || stageId === '4' || stageId === '3';
+
+      // Compute elapsed minutes from stageStartUtime (when current half started)
+      let minute = null;
+      if (isLive && m.stageStartUtime) {
+        const elapsed = Math.max(0, now - parseInt(m.stageStartUtime));
+        const half = stageId === '13' ? 2 : 1; // stageId 13 = 2nd half
+        const base = half === 2 ? 45 : 0;
+        minute = Math.min(base + Math.floor(elapsed / 60) + 1, half === 2 ? 90 : 45);
+      } else if (isLive && m.gameTime && m.gameTime !== '') {
+        minute = parseInt(m.gameTime);
+      }
+
+      return {
+        event_id:    m.eventId,
+        home_team:   m.homeName,
+        away_team:   m.awayName,
+        home_logo:   m.homeLogo,
+        away_logo:   m.awayLogo,
+        home_score:  isFT ? (m.homeFullTimeScore ?? m.homeScore ?? 0) : (m.homeScore ?? 0),
+        away_score:  isFT ? (m.awayFullTimeScore ?? m.awayScore ?? 0) : (m.awayScore ?? 0),
+        status:      isHT ? 'halftime' : isLive ? 'live' : isFT ? 'finished' : 'scheduled',
+        minute,
+        competition: m.tournamentName,
+        date:        m.startDateTimeUtc,
+        start_utime: m.startUtime,
+        stage_start_utime: m.stageStartUtime || null,
+        stage_id:    stageId,
+      };
+    });
+
+    // Sort: live first, then halftime, then scheduled by start time, then finished
+    const order = { live: 0, halftime: 1, scheduled: 2, finished: 3 };
+    mapped.sort((a, b) => (order[a.status] ?? 9) - (order[b.status] ?? 9));
+
+    res.json({ matches: mapped, count: mapped.length, updatedAt: new Date().toISOString() });
+  } catch (err) {
+    console.error('live-scores error:', err.message);
+    res.status(500).json({ error: err.message, matches: [] });
+  }
+});
+
 app.use('/api', router);
 app.use('/.netlify/functions/api', router);
 

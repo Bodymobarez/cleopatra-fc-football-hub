@@ -64,8 +64,8 @@ export default function Home() {
       {/* Breaking News Ticker */}
       <NewsTicker news={news} />
 
-      {/* Live Scores */}
-      <LiveScores matches={matches} />
+      {/* Live Scores — polls Flashscore API directly every 45s */}
+      <LiveScores />
 
       {/* Quick Links */}
       <QuickLinks />

@@ -1,27 +1,222 @@
-import React from 'react';
-import { motion } from 'framer-motion';
-import { Activity, ChevronRight } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Activity, ChevronRight, Clock, Wifi, WifiOff } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
 import { useLanguage } from '@/components/LanguageContext';
+import { ceramicaCleopatra } from '@/api/ceramicaCleopatraClient';
 
-export default function LiveScores({ matches = [] }) {
+const CERAMICA_NAMES = ['ceramica', 'cleopatra', 'سيراميكا', 'كليوباترا'];
+const isCeramica = (name) =>
+  CERAMICA_NAMES.some(k => String(name || '').toLowerCase().includes(k));
+
+const LIVE_STAGE_IDS   = new Set(['12','13','38','2','6','31','32']);
+const HT_STAGE_IDS     = new Set(['40','41']);
+
+// ── Live minute ticker ──────────────────────────────────────────
+function useLiveMinute(match) {
+  const [minute, setMinute] = useState(match.minute ?? null);
+
+  useEffect(() => {
+    if (match.status !== 'live') { setMinute(match.minute); return; }
+
+    const compute = () => {
+      const su = parseInt(match.stage_start_utime || 0);
+      if (!su) { setMinute(match.minute); return; }
+      const now = Math.floor(Date.now() / 1000);
+      const elapsed = Math.max(0, now - su);
+      const isSecondHalf = String(match.stage_id) === '13';
+      const base = isSecondHalf ? 45 : 0;
+      const max  = isSecondHalf ? 90 : 45;
+      setMinute(Math.min(base + Math.floor(elapsed / 60) + 1, max + 5)); // +5 for injury time
+    };
+
+    compute();
+    const id = setInterval(compute, 15000); // refresh every 15s
+    return () => clearInterval(id);
+  }, [match.status, match.stage_start_utime, match.stage_id, match.minute]);
+
+  return minute;
+}
+
+// ── Match Card ──────────────────────────────────────────────────
+function MatchCard({ match, index, isArabic }) {
+  const minute = useLiveMinute(match);
+  const isLive = match.status === 'live';
+  const isHT   = match.status === 'halftime';
+  const isFT   = match.status === 'finished';
+  const isCeramicaMatch = isCeramica(match.home_team) || isCeramica(match.away_team);
+
+  return (
+    <motion.div
+      key={match.event_id}
+      initial={{ opacity: 0, y: 16 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: index * 0.06 }}
+      className={`flex-shrink-0 rounded-2xl p-4 min-w-[260px] border transition-all
+        ${isCeramicaMatch
+          ? 'bg-gradient-to-br from-[#FFB81C]/10 to-white/5 border-[#FFB81C]/40 shadow-[#FFB81C]/10 shadow-lg'
+          : 'bg-white/5 border-white/10 hover:border-white/20'}
+      `}
+    >
+      {/* Header */}
+      <div className="flex items-center justify-between mb-3">
+        <span className="text-[10px] text-white/40 truncate max-w-[140px]">{match.competition}</span>
+
+        {isLive && (
+          <span className="flex items-center gap-1.5 shrink-0">
+            <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+            <AnimatePresence mode="wait">
+              <motion.span
+                key={minute}
+                initial={{ y: -6, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                exit={{ y: 6, opacity: 0 }}
+                transition={{ duration: 0.2 }}
+                className="text-red-400 font-black text-sm tabular-nums"
+              >
+                {minute != null ? `${minute}'` : (isArabic ? 'مباشر' : 'LIVE')}
+              </motion.span>
+            </AnimatePresence>
+          </span>
+        )}
+
+        {isHT && (
+          <span className="flex items-center gap-1 text-yellow-400 text-xs font-bold">
+            <span className="w-2 h-2 rounded-full bg-yellow-400" />
+            {isArabic ? 'ن.و' : 'HT'}
+          </span>
+        )}
+
+        {isFT && (
+          <span className="text-xs text-white/50 font-medium">{isArabic ? 'انتهت' : 'FT'}</span>
+        )}
+
+        {!isLive && !isHT && !isFT && (
+          <span className="text-xs text-white/40 flex items-center gap-1">
+            <Clock className="w-3 h-3" />
+            {new Date(match.date).toLocaleTimeString(isArabic ? 'ar-EG' : 'en-US', { hour: '2-digit', minute: '2-digit' })}
+          </span>
+        )}
+      </div>
+
+      {/* Teams + Scores */}
+      <div className="space-y-2.5">
+        {[
+          { logo: match.home_logo, name: match.home_team, score: match.home_score },
+          { logo: match.away_logo, name: match.away_team, score: match.away_score },
+        ].map((team, i) => {
+          const isThisTeamCeramica = isCeramica(team.name);
+          return (
+            <div key={i} className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2 min-w-0">
+                <div className="w-7 h-7 rounded-lg bg-white/10 flex items-center justify-center shrink-0 overflow-hidden">
+                  {team.logo
+                    ? <img
+                        src={team.logo}
+                        alt=""
+                        className="w-5 h-5 object-contain"
+                        onError={e => { e.target.style.display = 'none'; }}
+                      />
+                    : <span className="text-[9px] font-bold text-white">{team.name?.slice(0, 2)}</span>}
+                </div>
+                <span className={`text-sm font-medium truncate ${isThisTeamCeramica ? 'text-[#FFB81C]' : 'text-white'}`}>
+                  {team.name}
+                </span>
+              </div>
+              {(isLive || isHT || isFT) ? (
+                <AnimatePresence mode="wait">
+                  <motion.span
+                    key={`${team.name}-${team.score}`}
+                    initial={{ scale: 1.4, color: '#FFB81C' }}
+                    animate={{ scale: 1, color: isThisTeamCeramica ? '#FFB81C' : '#ffffff' }}
+                    transition={{ duration: 0.4 }}
+                    className="font-black text-lg tabular-nums shrink-0"
+                  >
+                    {team.score ?? 0}
+                  </motion.span>
+                </AnimatePresence>
+              ) : (
+                <span className="text-white/20 text-sm shrink-0">—</span>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Ceramica badge */}
+      {isCeramicaMatch && (
+        <div className="mt-3 pt-2.5 border-t border-[#FFB81C]/20">
+          <span className="text-[#FFB81C] text-[10px] font-black uppercase tracking-wider">
+            ★ {isArabic ? 'مباراة سيراميكا' : 'Ceramica Match'}
+          </span>
+        </div>
+      )}
+    </motion.div>
+  );
+}
+
+// ── Main LiveScores ─────────────────────────────────────────────
+export default function LiveScores() {
   const { isArabic } = useLanguage();
-  const liveMatches = matches.filter(m => m.status === 'live' || m.status === 'halftime');
+  const [liveData, setLiveData] = useState({ matches: [], count: 0 });
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+  const [lastUpdate, setLastUpdate] = useState(null);
+  const intervalRef = useRef(null);
+
+  const fetchLive = async () => {
+    try {
+      const data = await ceramicaCleopatra.liveScores();
+      setLiveData(data || { matches: [], count: 0 });
+      setLastUpdate(new Date());
+      setError(false);
+    } catch {
+      setError(true);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchLive();
+    intervalRef.current = setInterval(fetchLive, 45000); // poll every 45 seconds
+    return () => clearInterval(intervalRef.current);
+  }, []);
+
+  const matches = liveData.matches || [];
+  const liveCount = matches.filter(m => m.status === 'live' || m.status === 'halftime').length;
 
   return (
     <div className="bg-[#1B2852] border-b border-white/10">
       <div className="max-w-7xl mx-auto px-4 py-4">
+
+        {/* Header */}
         <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
             <Activity className="w-5 h-5 text-red-500" />
-            <span className="text-white font-semibold">{isArabic ? 'النتائج المباشرة' : 'Live Scores'}</span>
-            {liveMatches.length > 0 && (
-              <span className="px-2 py-0.5 bg-red-500 text-white text-xs font-bold rounded-full">
-                {liveMatches.length} {isArabic ? 'مباشر' : 'LIVE'}
+            <span className="text-white font-semibold">
+              {isArabic ? 'النتائج المباشرة' : 'Live Scores'}
+            </span>
+
+            {liveCount > 0 && (
+              <span className="flex items-center gap-1 px-2 py-0.5 bg-red-500 text-white text-xs font-black rounded-full animate-pulse">
+                <span className="w-1.5 h-1.5 rounded-full bg-white" />
+                {liveCount} {isArabic ? 'مباشر' : 'LIVE'}
               </span>
             )}
+
+            {/* Connection indicator */}
+            <span className={`flex items-center gap-1 text-[10px] ${error ? 'text-red-400' : 'text-green-400/70'}`}>
+              {error ? <WifiOff className="w-3 h-3" /> : <Wifi className="w-3 h-3" />}
+              {lastUpdate && !error && (
+                <span className="hidden sm:inline">
+                  {isArabic ? 'تحديث كل 45ث' : 'Updates every 45s'}
+                </span>
+              )}
+            </span>
           </div>
+
           <Link
             to={createPageUrl('MatchCenter')}
             className="text-[#FFB81C] text-sm flex items-center gap-1 hover:gap-2 transition-all"
@@ -30,62 +225,39 @@ export default function LiveScores({ matches = [] }) {
           </Link>
         </div>
 
-        <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide">
-          {matches.slice(0, 8).map((match, index) => (
-            <motion.div
-              key={match.id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.1 }}
-              className="flex-shrink-0 bg-white/5 rounded-xl p-4 min-w-[280px] border border-white/10 hover:border-[#FFB81C]/50 transition-all"
-            >
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-xs text-white/50">{match.competition}</span>
-                {(match.status === 'live' || match.status === 'halftime') ? (
-                  <span className="flex items-center gap-1.5 text-xs">
-                    <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-                    <span className="text-red-400 font-medium">
-                      {match.status === 'halftime'
-                        ? (isArabic ? 'ن.و' : 'HT')
-                        : `${match.minute ?? ''}'`}
-                    </span>
-                  </span>
-                ) : match.status === 'finished' ? (
-                  <span className="text-xs text-white/50">{isArabic ? 'انتهت' : 'FT'}</span>
-                ) : (
-                  <span className="text-xs text-white/50">
-                    {new Date(match.date).toLocaleTimeString(isArabic ? 'ar-EG' : 'en-US', { hour: '2-digit', minute: '2-digit' })}
-                  </span>
-                )}
-              </div>
-
-              <div className="space-y-2">
-                {[
-                  { logo: match.home_team_logo || match.home_logo, name: match.home_team, score: match.home_score },
-                  { logo: match.away_team_logo || match.away_logo, name: match.away_team, score: match.away_score },
-                ].map((team, i) => (
-                  <div key={i} className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <div className="w-6 h-6 rounded bg-white/10 flex items-center justify-center">
-                        {team.logo
-                          ? <img src={team.logo} alt="" className="w-4 h-4 object-contain" />
-                          : <span className="text-[8px] font-bold text-white">{team.name?.slice(0, 2)}</span>}
-                      </div>
-                      <span className="text-white text-sm font-medium truncate max-w-[140px]">{team.name}</span>
-                    </div>
-                    <span className="text-white font-bold">{team.score ?? '-'}</span>
+        {/* Match cards */}
+        <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
+          {loading && (
+            <div className="flex gap-3">
+              {[1, 2, 3].map(i => (
+                <div key={i} className="flex-shrink-0 rounded-2xl p-4 min-w-[260px] bg-white/5 border border-white/10 animate-pulse">
+                  <div className="h-3 bg-white/10 rounded mb-4 w-3/4" />
+                  <div className="space-y-3">
+                    <div className="h-5 bg-white/10 rounded w-full" />
+                    <div className="h-5 bg-white/10 rounded w-full" />
                   </div>
-                ))}
-              </div>
-            </motion.div>
-          ))}
-
-          {matches.length === 0 && (
-            <div className="text-white/50 text-sm py-4">
-              {isArabic ? 'لا توجد مباريات اليوم' : 'No matches today'}
+                </div>
+              ))}
             </div>
           )}
+
+          {!loading && matches.length === 0 && (
+            <div className="text-white/40 text-sm py-4 flex items-center gap-2">
+              <Clock className="w-4 h-4" />
+              {isArabic ? 'لا توجد مباريات مصرية الآن' : 'No Egyptian matches right now'}
+            </div>
+          )}
+
+          {!loading && matches.map((match, index) => (
+            <MatchCard
+              key={match.event_id || index}
+              match={match}
+              index={index}
+              isArabic={isArabic}
+            />
+          ))}
         </div>
+
       </div>
     </div>
   );
