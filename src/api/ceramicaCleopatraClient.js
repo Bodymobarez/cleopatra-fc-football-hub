@@ -92,7 +92,8 @@ export const ceramicaCleopatra = {
     syncAll:         () => apiFetch('POST', '/sync/all'),
   },
 
-  liveScores: () => apiFetch('GET', '/live-scores'),
+  liveScores:       () => apiFetch('GET', '/live-scores'),
+  ceramicaFixtures: () => apiFetch('GET', '/ceramica-fixtures'),
 
   settings: {
     get:  ()     => apiFetch('GET', '/settings'),

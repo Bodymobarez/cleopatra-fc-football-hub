@@ -55,11 +55,11 @@ export default function Home() {
 
   return (
     <div className="min-h-screen">
-      {/* Hero Section */}
-      <HeroSection latestMatch={latestMatch} nextMatch={nextMatch} />
+      {/* Hero Section — fetches ceramica fixtures internally */}
+      <HeroSection />
 
-      {/* Hero Bottom Bar — last result + next match countdown + news/standings slider */}
-      <HeroBottomBar latestMatch={latestMatch} nextMatch={nextMatch} news={news} standings={standings} />
+      {/* Hero Bottom Bar — news/standings slider */}
+      <HeroBottomBar news={news} standings={standings} />
 
       {/* Breaking News Ticker */}
       <NewsTicker news={news} />

@@ -1095,6 +1095,33 @@ makeCRUD(router, 'polls',    ['question','options','total_votes','is_active','cr
 makeCRUD(router, 'comments', ['content','author_name','status','news_id','created_date'], true);
 makeCRUD(router, 'standings',['competition','season','teams','created_date'], true);
 
+// ── Ceramica Fixtures: last result + next match (from DB) ───────────────────
+router.get('/ceramica-fixtures', async (_req, res) => {
+  try {
+    const { query } = getSQL();
+    const [finishedRes, scheduledRes] = await Promise.all([
+      query(
+        `SELECT * FROM matches WHERE is_ceramica_match = true AND status = 'finished'
+         ORDER BY date DESC LIMIT 1`,
+        []
+      ),
+      query(
+        `SELECT * FROM matches WHERE is_ceramica_match = true AND status = 'scheduled'
+         ORDER BY date ASC LIMIT 1`,
+        []
+      ),
+    ]);
+
+    const lastResult = finishedRes.rows[0] || null;
+    const nextMatch  = scheduledRes.rows[0] || null;
+
+    res.json({ lastResult, nextMatch });
+  } catch (err) {
+    console.error('ceramica-fixtures', err);
+    res.status(500).json({ error: err.message, lastResult: null, nextMatch: null });
+  }
+});
+
 // ── Live Scores (direct proxy from Flashscore, no DB) ────────────────────────
 // Egyptian tournament IDs (main + relegation group + cup etc.)
 const EGYPT_TOURNAMENT_IDS = new Set([
