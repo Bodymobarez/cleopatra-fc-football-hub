@@ -21,9 +21,11 @@ export const PAGES = {
     "Home": Home,
     "Squad": Squad,
     "Matches": Matches,
+    "MatchCenter": Matches,       // alias → Matches
     "News": News,
     "NewsDetail": NewsDetail,
     "GlobalNews": GlobalNews,
+    "LeagueNews": GlobalNews,     // alias → GlobalNews
     "Admin": Admin,
     "AdminPanel": AdminPanel,
     "Standings": Standings,
