@@ -8,6 +8,8 @@ import Admin from './pages/Admin';
 import Standings from './pages/Standings';
 import About from './pages/About';
 import Academy from './pages/Academy';
+import FanZone from './pages/FanZone';
+import Media from './pages/Media';
 import __Layout from './Layout.jsx';
 
 
@@ -22,6 +24,8 @@ export const PAGES = {
     "Standings": Standings,
     "About": About,
     "Academy": Academy,
+    "FanZone": FanZone,
+    "Media": Media,
 }
 
 export const pagesConfig = {
