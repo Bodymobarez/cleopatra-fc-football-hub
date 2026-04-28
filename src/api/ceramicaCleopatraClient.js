@@ -85,6 +85,7 @@ export const ceramicaCleopatra = {
     syncStandings:  () => apiFetch('POST', '/sync/standings'),
     syncSquad:      () => apiFetch('POST', '/sync/squad'),
     syncMatches:    () => apiFetch('POST', '/sync/matches'),
+    syncFixtures:   () => apiFetch('POST', '/sync/fixtures'),
     syncTopScorers: () => apiFetch('POST', '/sync/topscorers'),
     syncNews:       () => apiFetch('POST', '/sync/news'),
     syncAll:        () => apiFetch('POST', '/sync/all'),

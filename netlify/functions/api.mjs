@@ -811,11 +811,115 @@ The match was played at ${venue} in Round ${round.replace('Round ', '')} of the 
   }
 });
 
+// ── Upcoming Fixtures (detailed, with venue + preview news) ──────────────────
+syncRouter.post('/fixtures', async (_req, res) => {
+  try {
+    const { query } = getSQL();
+    const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+
+    const fixturesRaw = await flashscore(`${EPL_PATH}/${SEASON}/fixtures?page=1`).catch(() => []);
+    const ceramicaFixtures = (Array.isArray(fixturesRaw) ? fixturesRaw : []).filter(m =>
+      m.homeParticipantIds === CERAMICA_ID || m.awayParticipantIds === CERAMICA_ID
+    );
+
+    const previewImages = [
+      'https://images.unsplash.com/photo-1516912481808-3406841bd33c?w=800',
+      'https://images.unsplash.com/photo-1522778119026-d647f0596c20?w=800',
+      'https://images.unsplash.com/photo-1574629810360-7efbbe195018?w=800',
+    ];
+
+    const synced = [];
+
+    for (let idx = 0; idx < ceramicaFixtures.length; idx++) {
+      const m = ceramicaFixtures[idx];
+      const isCeramicaHome = m.homeParticipantIds === CERAMICA_ID;
+      const opponent    = isCeramicaHome ? m.awayName : m.homeName;
+      const opponentId  = isCeramicaHome ? m.awayParticipantIds : m.homeParticipantIds;
+      const matchDate   = new Date(m.startDateTimeUtc || parseInt(m.startUtime || 0) * 1000);
+      const round       = m.round || `Round ${idx + 5}`;
+      const homeLogo    = fsLogo(m.homeLogo);
+      const awayLogo    = fsLogo(m.awayLogo);
+
+      // Get venue details from match detail endpoint
+      let venue = null;
+      let venueCity = null;
+      let capacity = null;
+      try {
+        const detail = await flashscore(`/api/flashscore/match/${m.eventId}/details?with_events=true`);
+        venue     = detail.venue     || null;
+        venueCity = detail.venueCity || null;
+        capacity  = detail.capacity  || null;
+        await sleep(400);
+      } catch (_) {}
+
+      const venueStr = venue ? `${venue}${venueCity ? ', ' + venueCity : ''}` : null;
+
+      // Upsert into matches table
+      await query(
+        `INSERT INTO matches
+           (home_team, away_team, date, venue, status, competition, match_type,
+            is_ceramica_match, home_team_logo, away_team_logo)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
+        [
+          m.homeName, m.awayName, matchDate.toISOString(),
+          venueStr, 'scheduled',
+          m.tournamentName || 'Egyptian Premier League',
+          'league', true, homeLogo, awayLogo,
+        ],
+      );
+
+      // Generate preview news article
+      const homeAway  = isCeramicaHome ? 'home' : 'away';
+      const title     = `${round}: Ceramica Cleopatra ${isCeramicaHome ? 'host' : 'travel to face'} ${opponent}`;
+      const dateStr   = matchDate.toLocaleDateString('en-GB', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
+      const timeStr   = matchDate.toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit' }) + ' (Cairo Time)';
+      const excerpt   = `Ceramica Cleopatra face ${opponent} in ${round} of the Egyptian Premier League ${SEASON} on ${dateStr}.`;
+      const content   = `MATCH PREVIEW — ${round}
+Egyptian Premier League ${SEASON}
+
+📅 Date: ${dateStr}
+⏰ Time: ${timeStr}
+🏟️ Venue: ${venueStr || (isCeramicaHome ? 'Arab Contractors Stadium, Cairo' : `${opponent}'s Stadium`)}
+${capacity ? `👥 Capacity: ${capacity} fans` : ''}
+
+Ceramica Cleopatra play ${homeAway} against ${opponent} in what promises to be an exciting fixture in the Egyptian Premier League ${SEASON} season.
+
+${isCeramicaHome
+  ? `The Pharaohs will be looking to use their home advantage at ${venueStr || 'their stadium'} to secure all three points and strengthen their position in the table.`
+  : `Ceramica Cleopatra travel to face ${opponent} looking to pick up a positive result away from home.`
+}
+
+Both clubs will be eager to secure crucial points as the season progresses. This fixture is one to watch for all football fans.
+
+Head-to-head record and team news will be available closer to kick-off.
+
+#CeramicaCleopatra #EPL #EgyptianPremierLeague`;
+
+      await query(
+        `INSERT INTO news
+           (title, excerpt, content, category, is_club_news, is_featured, is_breaking, status, featured_image, published_at, tags, views)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
+        [title, excerpt, content, 'preview', true, false, false, 'published',
+         previewImages[idx % previewImages.length],
+         new Date().toISOString(),
+         JSON.stringify(['preview', 'upcoming', 'Ceramica', SEASON, opponent, round]), 0],
+      );
+
+      synced.push({ match: `${m.homeName} vs ${m.awayName}`, date: matchDate.toISOString(), venue: venueStr, round });
+    }
+
+    res.json({ synced: true, fixtures: synced.length, details: synced, updatedAt: new Date().toISOString() });
+  } catch (err) {
+    console.error('sync/fixtures', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ── Sync All ──────────────────────────────────────────────────────────────
 syncRouter.post('/all', async (req, res) => {
   const results = {};
   const base = `${req.protocol}://${req.get('host')}${req.baseUrl.replace('/sync', '')}`;
-  for (const name of ['standings', 'squad', 'matches', 'topscorers', 'news']) {
+  for (const name of ['standings', 'squad', 'matches', 'fixtures', 'topscorers', 'news']) {
     try {
       const r = await fetch(`${base}/sync/${name}`, { method: 'POST', headers: { 'content-type': 'application/json' } });
       results[name] = await r.json();
