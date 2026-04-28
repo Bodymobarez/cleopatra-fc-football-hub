@@ -596,57 +596,88 @@ syncRouter.post('/squad', async (_req, res) => {
 });
 
 // ── Matches ────────────────────────────────────────────────────────────────
+// Helper: fetch all pages from a paginated endpoint
+async function fetchAllPages(basePath) {
+  const all = [];
+  for (let page = 1; page <= 5; page++) {
+    const data = await flashscore(`${basePath}?page=${page}`).catch(() => null);
+    if (!Array.isArray(data) || data.length === 0) break;
+    all.push(...data);
+    if (data.length < 50) break; // assume last page if fewer than 50 items
+  }
+  return all;
+}
+
 syncRouter.post('/matches', async (_req, res) => {
   try {
     const { query } = getSQL();
 
     const [resultsRaw, fixturesRaw] = await Promise.all([
-      flashscore(`${EPL_PATH}/${SEASON}/results?page=1`).catch(() => []),
-      flashscore(`${EPL_PATH}/${SEASON}/fixtures?page=1`).catch(() => []),
+      fetchAllPages(`${EPL_PATH}/${SEASON}/results`),
+      fetchAllPages(`${EPL_PATH}/${SEASON}/fixtures`),
     ]);
 
-    const stageMap = { '3':'finished', '242':'finished', '12':'live', '13':'live', '38':'live', '2':'live', '6':'live', '1':'scheduled', '7':'penalties' };
+    const stageMap = {
+      '3':'finished','242':'finished',
+      '12':'live','13':'live','38':'live','2':'live','6':'live',
+      '1':'scheduled','7':'finished'
+    };
 
     const processMatch = (m) => {
       const isCeramica = m.homeParticipantIds === CERAMICA_ID || m.awayParticipantIds === CERAMICA_ID;
-      const status = stageMap[m.eventStageId] || (m.eventStage === 'FINISHED' ? 'finished' : 'scheduled');
+      const status = stageMap[String(m.eventStageId)] || (m.eventStage === 'FINISHED' ? 'finished' : 'scheduled');
+      const isPlayed = status !== 'scheduled';
       return {
-        home_team:        m.homeName,
-        away_team:        m.awayName,
-        date:             m.startDateTimeUtc || new Date(parseInt(m.startUtime || m.startTime || 0) * 1000).toISOString(),
-        venue:            null,
+        home_team:         m.homeName || '',
+        away_team:         m.awayName || '',
+        date:              m.startDateTimeUtc
+                             || new Date(parseInt(m.startUtime || m.startTime || 0) * 1000).toISOString(),
         status,
-        home_score:       status !== 'scheduled' ? (parseInt(m.homeFullTimeScore ?? m.homeScore) || 0) : null,
-        away_score:       status !== 'scheduled' ? (parseInt(m.awayFullTimeScore ?? m.awayScore) || 0) : null,
-        competition:      m.tournamentName || 'Egyptian Premier League',
-        match_type:       'league',
+        home_score:        isPlayed ? (parseInt(m.homeFullTimeScore ?? m.homeScore ?? 0) || 0) : 0,
+        away_score:        isPlayed ? (parseInt(m.awayFullTimeScore ?? m.awayScore ?? 0) || 0) : 0,
+        competition:       m.tournamentName || 'Egyptian Premier League',
+        match_type:        'league',
         is_ceramica_match: isCeramica,
-        home_team_logo:   fsLogo(m.homeLogo),
-        away_team_logo:   fsLogo(m.awayLogo),
-        api_fixture_id:   m.eventId ? parseInt(m.eventId.replace(/[^0-9]/g,'').slice(0,15) || '0') : null,
-        round:            m.round || null,
+        home_team_logo:    fsLogo(m.homeLogo),
+        away_team_logo:    fsLogo(m.awayLogo),
+        round:             m.round || null,
       };
     };
 
     const allMatches = [
-      ...(Array.isArray(resultsRaw) ? resultsRaw : []),
-      ...(Array.isArray(fixturesRaw) ? fixturesRaw : []),
+      ...resultsRaw,
+      ...fixturesRaw,
     ].map(processMatch);
 
+    if (allMatches.length === 0) {
+      return res.status(200).json({ synced: false, matches: 0, message: 'API returned no data' });
+    }
+
+    // Upsert: delete only if we have fresh data
     await query('DELETE FROM matches', []);
     for (const m of allMatches) {
       await query(
         `INSERT INTO matches
-          (home_team,away_team,date,status,home_score,away_score,competition,match_type,is_ceramica_match,home_team_logo,away_team_logo)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
-        [m.home_team, m.away_team, m.date, m.status, m.home_score, m.away_score,
-         m.competition, m.match_type, m.is_ceramica_match, m.home_team_logo, m.away_team_logo],
+           (home_team, away_team, date, status, home_score, away_score,
+            competition, match_type, is_ceramica_match, home_team_logo, away_team_logo, round)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
+        [
+          m.home_team, m.away_team, m.date, m.status,
+          m.home_score, m.away_score, m.competition, m.match_type,
+          m.is_ceramica_match, m.home_team_logo, m.away_team_logo, m.round,
+        ],
       );
     }
 
-    res.json({ synced: true, matches: allMatches.length, ceramica: allMatches.filter(m => m.is_ceramica_match).length, season: SEASON, updatedAt: new Date().toISOString() });
+    res.json({
+      synced:   true,
+      matches:  allMatches.length,
+      ceramica: allMatches.filter(m => m.is_ceramica_match).length,
+      season:   SEASON,
+      updatedAt: new Date().toISOString(),
+    });
   } catch (err) {
-    console.error('sync/matches', err);
+    console.error('sync/matches error:', err.message);
     res.status(500).json({ error: err.message });
   }
 });
