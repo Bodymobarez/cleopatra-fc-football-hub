@@ -41,14 +41,15 @@ export default function Layout({ children, currentPageName }) {
     { name: t('nav.matches', 'Matches'),  href: 'Matches',  icon: Calendar },
     { name: t('nav.news', 'News'),        href: 'News',     icon: Newspaper },
     {
-      name: t('nav.global_football', 'Global Football'),
+      name: t('nav.global_football', isArabic ? 'الدوريات' : 'Leagues'),
       icon: Globe,
       children: [
-        { name: t('nav.all_news', 'All News'),                    href: 'GlobalNews' },
-        { name: t('nav.premier_league', 'Premier League'),        href: 'LeagueNews?league=premier_league' },
-        { name: t('nav.la_liga', 'La Liga'),                      href: 'LeagueNews?league=la_liga' },
-        { name: t('nav.champions_league', 'Champions League'),    href: 'LeagueNews?league=champions_league' },
-        { name: t('nav.world_cup', 'World Cup'),                  href: 'LeagueNews?league=world_cup' },
+        { name: isArabic ? 'الدوري المصري الممتاز 🇪🇬' : 'Egyptian Premier League 🇪🇬', href: null, path: '/league/egypt' },
+        { name: isArabic ? 'الدوري الإنجليزي 🏴󠁧󠁢󠁥󠁮󠁧󠁿' : 'English Premier League 🏴󠁧󠁢󠁥󠁮󠁧󠁿', href: null, path: '/league/england' },
+        { name: isArabic ? 'الدوري الإسباني 🇪🇸' : 'La Liga 🇪🇸', href: null, path: '/league/spain' },
+        { name: isArabic ? 'الدوري الإيطالي 🇮🇹' : 'Serie A 🇮🇹', href: null, path: '/league/italy' },
+        { name: isArabic ? 'الدوري الألماني 🇩🇪' : 'Bundesliga 🇩🇪', href: null, path: '/league/germany' },
+        { name: isArabic ? 'أخبار كرة القدم العالمية' : 'Global Football News', href: 'GlobalNews' },
       ]
     },
     { name: t('nav.standings', 'Standings'), href: 'Standings', icon: Trophy },
@@ -96,11 +97,11 @@ export default function Layout({ children, currentPageName }) {
                       {item.name}
                       <ChevronDown className="w-4 h-4" />
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent className="bg-[#0a1628] border-white/10">
+                    <DropdownMenuContent className="bg-[#0a1628] border-white/10 min-w-[220px]">
                       {item.children.map((child) => (
                         <DropdownMenuItem key={child.name} asChild>
-                          <Link 
-                            to={createPageUrl(child.href.split('?')[0]) + (child.href.includes('?') ? child.href.substring(child.href.indexOf('?')) : '')}
+                          <Link
+                            to={child.path || (child.href ? createPageUrl(child.href.split('?')[0]) + (child.href.includes('?') ? child.href.substring(child.href.indexOf('?')) : '') : '#')}
                             className="text-white/80 hover:text-white hover:bg-white/10"
                           >
                             {child.name}
@@ -224,7 +225,7 @@ export default function Layout({ children, currentPageName }) {
                       {item.children.map((child) => (
                         <Link
                           key={child.name}
-                          to={createPageUrl(child.href.split('?')[0]) + (child.href.includes('?') ? child.href.substring(child.href.indexOf('?')) : '')}
+                          to={child.path || (child.href ? createPageUrl(child.href.split('?')[0]) + (child.href.includes('?') ? child.href.substring(child.href.indexOf('?')) : '') : '#')}
                           className="block px-4 py-2 text-white/80 hover:text-white hover:bg-white/10 rounded-lg pl-8"
                         >
                           {child.name}
@@ -312,15 +313,15 @@ export default function Layout({ children, currentPageName }) {
               <h4 className="font-bold text-lg mb-4">{t('footer.leagues','Leagues')}</h4>
               <ul className="space-y-2">
                 {[
-                  isArabic ? 'الدوري الإنجليزي' : 'Premier League',
-                  isArabic ? 'الدوري الإسباني' : 'La Liga',
-                  isArabic ? 'الدوري الإيطالي' : 'Serie A',
-                  isArabic ? 'الدوري الألماني' : 'Bundesliga',
-                  isArabic ? 'الدوري المصري' : 'Egyptian League',
+                  { labelAr: 'الدوري المصري الممتاز 🇪🇬', labelEn: 'Egyptian Premier League 🇪🇬', path: '/league/egypt' },
+                  { labelAr: 'الدوري الإنجليزي 🏴󠁧󠁢󠁥󠁮󠁧󠁿',         labelEn: 'English Premier League 🏴󠁧󠁢󠁥󠁮󠁧󠁿', path: '/league/england' },
+                  { labelAr: 'الدوري الإسباني 🇪🇸',          labelEn: 'La Liga 🇪🇸',               path: '/league/spain' },
+                  { labelAr: 'الدوري الإيطالي 🇮🇹',          labelEn: 'Serie A 🇮🇹',               path: '/league/italy' },
+                  { labelAr: 'الدوري الألماني 🇩🇪',          labelEn: 'Bundesliga 🇩🇪',            path: '/league/germany' },
                 ].map((item) => (
-                  <li key={item}>
-                    <Link to={createPageUrl('GlobalNews')} className="text-white/60 hover:text-[#FFB81C] transition-colors">
-                      {item}
+                  <li key={item.path}>
+                    <Link to={item.path} className="text-white/60 hover:text-[#FFB81C] transition-colors">
+                      {isArabic ? item.labelAr : item.labelEn}
                     </Link>
                   </li>
                 ))}

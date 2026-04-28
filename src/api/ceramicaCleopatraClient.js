@@ -93,6 +93,7 @@ export const ceramicaCleopatra = {
   },
 
   newsFeeds:        (cat)       => apiFetch('GET', `/news-feeds${cat ? `?category=${encodeURIComponent(cat)}` : ''}`),
+  league:           (id)        => apiFetch('GET', `/league/${id}`),
   liveScores:       ()          => apiFetch('GET', '/live-scores'),
   ceramicaFixtures: ()          => apiFetch('GET', '/ceramica-fixtures'),
   matchDetails:     (eventId)   => apiFetch('GET', `/match-details/${eventId}`),

@@ -42,6 +42,20 @@ const fsLogo = (part) => part ? (part.startsWith('http') ? part : `${LOGO_CDN}${
 // EPL base path
 const EPL_PATH = `/api/flashscore/football/egypt:${EGYPT_ID}/${EPL_SLUG}:${EPL_ID}`;
 
+// ─── Major league registry ─────────────────────────────────────────────────
+const LEAGUES = {
+  egypt:    { name: 'الدوري المصري الممتاز', nameEn: 'Egyptian Premier League', path: `/api/flashscore/football/egypt:${EGYPT_ID}/${EPL_SLUG}:${EPL_ID}`, flag: '🇪🇬', color: '#C8102E', season: SEASON,
+              champSlots: 2, clSlots: [1,2], ccSlots: [3], relSlots: 0 },
+  england:  { name: 'الدوري الإنجليزي الممتاز', nameEn: 'English Premier League', path: '/api/flashscore/football/england:1/premier-league:p6ahwuwJ', flag: '🏴󠁧󠁢󠁥󠁮󠁧󠁿', color: '#3D195B', season: SEASON,
+              champSlots: 1, clSlots: [1,2,3,4], ccSlots: [5,6], relSlots: 3 },
+  spain:    { name: 'الدوري الإسباني', nameEn: 'La Liga', path: '/api/flashscore/football/spain:4/primera-division:p7e6X97B', flag: '🇪🇸', color: '#EE2523', season: SEASON,
+              champSlots: 1, clSlots: [1,2,3,4], ccSlots: [5,6], relSlots: 3 },
+  italy:    { name: 'الدوري الإيطالي', nameEn: 'Serie A', path: '/api/flashscore/football/italy:5/serie-a:WXuZPEXn', flag: '🇮🇹', color: '#0066CC', season: SEASON,
+              champSlots: 1, clSlots: [1,2,3,4], ccSlots: [5,6], relSlots: 3 },
+  germany:  { name: 'الدوري الألماني', nameEn: 'Bundesliga', path: '/api/flashscore/football/germany:6/bundesliga:WqkNzMBr', flag: '🇩🇪', color: '#D20515', season: SEASON,
+              champSlots: 1, clSlots: [1,2,3,4], ccSlots: [5,6], relSlots: 2 },
+};
+
 // ─── JWT helpers ─────────────────────────────────────────────────────────────
 const signToken = (user) =>
   jwt.sign({ id: user.id, email: user.email, role: user.role }, JWT_SECRET, { expiresIn: '7d' });
@@ -1595,6 +1609,97 @@ router.get('/live-scores', async (_req, res) => {
   } catch (err) {
     console.error('live-scores error:', err.message);
     res.status(500).json({ error: err.message, matches: [] });
+  }
+});
+
+// ─── GET /league/:id  — live standings + results + fixtures for any league ───
+router.get('/league/:id', async (req, res) => {
+  try {
+    const league = LEAGUES[req.params.id];
+    if (!league) return res.status(404).json({ error: 'Unknown league id' });
+
+    const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+    const base  = `${league.path}/${league.season}`;
+
+    // Fetch standings, results, fixtures in sequence (rate limit: 3 req/s)
+    const standingsRaw = await flashscore(`${base}/standings`).catch(() => []);
+    await sleep(400);
+    const resultsRaw   = await flashscore(`${base}/results?page=1`).catch(() => []);
+    await sleep(400);
+    const fixturesRaw  = await flashscore(`${base}/fixtures?page=1`).catch(() => []);
+
+    // Build logo map from results
+    const logoMap = {};
+    for (const m of (Array.isArray(resultsRaw) ? resultsRaw : [])) {
+      if (m.homeParticipantIds && m.homeLogo) logoMap[m.homeParticipantIds] = fsLogo(m.homeLogo);
+      if (m.awayParticipantIds && m.awayLogo)  logoMap[m.awayParticipantIds] = fsLogo(m.awayLogo);
+    }
+    for (const m of (Array.isArray(fixturesRaw) ? fixturesRaw : [])) {
+      if (m.homeParticipantIds && m.homeLogo) logoMap[m.homeParticipantIds] = fsLogo(m.homeLogo);
+      if (m.awayParticipantIds && m.awayLogo)  logoMap[m.awayParticipantIds] = fsLogo(m.awayLogo);
+    }
+
+    // Map standings
+    const standings = (Array.isArray(standingsRaw) ? standingsRaw : []).map(t => {
+      const [gf, ga] = (t.goals || '0:0').split(':').map(Number);
+      const form = (t.events || [])
+        .filter(e => e.eventType !== 'upcoming')
+        .map(e => e.eventSymbol === 'W' ? 'W' : e.eventSymbol === 'D' ? 'D' : 'L')
+        .join('').slice(-5);
+      return {
+        position:        parseInt(t.rank),
+        team:            t.teamName,
+        team_id:         t.teamId,
+        team_logo:       logoMap[t.teamId] || fsLogo(t.teamLogo) || `https://ui-avatars.com/api/?name=${encodeURIComponent(t.teamName)}&size=100&background=1B2852&color=FFB81C`,
+        played:          parseInt(t.matches || 0),
+        won:             parseInt(t.winsRegular || t.wins || 0),
+        drawn:           parseInt(t.draws || 0),
+        lost:            parseInt(t.lossesRegular || 0),
+        goals_for:       gf || 0,
+        goals_against:   ga || 0,
+        goal_difference: parseInt(t.goalDiff || 0),
+        points:          parseInt(t.points || 0),
+        form,
+        description:     t.rankClass || '',
+      };
+    });
+
+    // Map recent results (last 10)
+    const results = (Array.isArray(resultsRaw) ? resultsRaw : []).slice(0, 20).map(m => ({
+      event_id:    m.eventId,
+      home_team:   m.homeName,
+      away_team:   m.awayName,
+      home_logo:   fsLogo(m.homeLogo),
+      away_logo:   fsLogo(m.awayLogo),
+      home_score:  m.homeFullTimeScore ?? m.homeScore ?? 0,
+      away_score:  m.awayFullTimeScore ?? m.awayScore ?? 0,
+      date:        m.startDateTimeUtc,
+      round:       m.round || '',
+      status:      'finished',
+    }));
+
+    // Map upcoming fixtures (next 10)
+    const fixtures = (Array.isArray(fixturesRaw) ? fixturesRaw : []).slice(0, 10).map(m => ({
+      event_id:    m.eventId,
+      home_team:   m.homeName,
+      away_team:   m.awayName,
+      home_logo:   fsLogo(m.homeLogo),
+      away_logo:   fsLogo(m.awayLogo),
+      date:        m.startDateTimeUtc,
+      round:       m.round || '',
+      status:      'scheduled',
+    }));
+
+    res.json({
+      league:    { id: req.params.id, ...league },
+      standings,
+      results,
+      fixtures,
+      updatedAt: new Date().toISOString(),
+    });
+  } catch (err) {
+    console.error('league/:id', err.message);
+    res.status(500).json({ error: err.message });
   }
 });
 

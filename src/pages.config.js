@@ -15,6 +15,7 @@ import Media from './pages/Media';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
+import LeaguePage from './pages/LeaguePage';
 import __Layout from './Layout.jsx';
 
 
@@ -38,6 +39,7 @@ export const PAGES = {
     "Register": Register,
     "Dashboard": Dashboard,
     "PlayerProfile": PlayerProfile,
+    "League": LeaguePage,
 }
 
 export const pagesConfig = {
