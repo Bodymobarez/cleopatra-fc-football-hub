@@ -628,10 +628,12 @@ syncRouter.post('/player-stats', async (_req, res) => {
     }
 
     // 2. Fetch all DB players with a flashscore_id
-    const { rows } = await query(
+    const rawResult = await query(
       `SELECT id, name, stats FROM players WHERE stats->>'flashscore_id' IS NOT NULL`,
       []
     );
+    // neon() can return an array directly OR { rows: [] }
+    const rows = Array.isArray(rawResult) ? rawResult : (rawResult?.rows || []);
 
     if (rows.length === 0) {
       return res.json({ synced: true, updated: 0, message: 'No players with flashscore_id. Run Squad sync first.' });
@@ -1148,8 +1150,10 @@ router.get('/ceramica-fixtures', async (_req, res) => {
       ),
     ]);
 
-    const lastResult = finishedRes.rows[0] || null;
-    const nextMatch  = scheduledRes.rows[0] || null;
+    const finishedRows  = Array.isArray(finishedRes)  ? finishedRes  : (finishedRes?.rows  || []);
+    const scheduledRows = Array.isArray(scheduledRes) ? scheduledRes : (scheduledRes?.rows || []);
+    const lastResult = finishedRows[0]  || null;
+    const nextMatch  = scheduledRows[0] || null;
 
     res.json({ lastResult, nextMatch });
   } catch (err) {
