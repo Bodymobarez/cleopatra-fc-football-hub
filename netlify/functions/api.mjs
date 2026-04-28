@@ -566,7 +566,7 @@ syncRouter.post('/squad', async (_req, res) => {
 
       const stats = {
         appearances:      sv('Matches Played'),
-        goals:            sv('Goals'),
+        goals:            sv('Goals Scored'),
         assists:          sv('Assists'),
         yellow_cards:     sv('Yellow Cards'),
         red_cards:        sv('Red Cards'),
@@ -663,7 +663,7 @@ syncRouter.post('/player-stats', async (_req, res) => {
           ...existingStats,
           flashscore_slug:  slug,
           appearances:      sv('Matches Played'),
-          goals:            sv('Goals'),
+          goals:            sv('Goals Scored'),
           assists:          sv('Assists'),
           yellow_cards:     sv('Yellow Cards'),
           red_cards:        sv('Red Cards'),
