@@ -58,10 +58,10 @@ function StandingsTable({ teams, isArabic, isRelGroup = false }) {
         <TableBody>
           {teams.map((team, index) => {
             const isCeramica  = (team.team || '').toLowerCase().includes('ceramica');
-            const isChampion  = !isRelGroup && team.position === 1;
-            const isCafCL     = !isRelGroup && team.position === 2;
+            const isChampion  = !isRelGroup && team.position === 1;   // crown marker only
+            const isCafCL     = !isRelGroup && team.position <= 2;    // pos 1 & 2 both in CAF CL
             const isCafConf   = !isRelGroup && team.position === 3;
-            const isTop3      = isChampion || isCafCL || isCafConf;
+            const isTop3      = isCafCL || isCafConf;
             const isRelTop    =  isRelGroup && team.position <= 1;
             const isRelBot    =  isRelGroup && team.position >= totalTeams - 2;
 
@@ -89,7 +89,7 @@ function StandingsTable({ teams, isArabic, isRelGroup = false }) {
                       <span className="w-1.5 h-8 rounded-full mr-1 bg-red-500" />
                     )}
                     <span className={isCeramica ? 'text-[#FFB81C]' : 'text-white/70'}>{team.position}</span>
-                    {isChampion && <Crown className="w-3.5 h-3.5 text-[#FFD700]" />}
+                    {isChampion && <Crown className="w-3.5 h-3.5 text-[#FFD700]" title="بطل الدوري" />}
                   </div>
                 </TableCell>
 
@@ -130,7 +130,7 @@ function StandingsTable({ teams, isArabic, isRelGroup = false }) {
                 <TableCell className="text-center">
                   <span className={`inline-flex items-center justify-center w-10 h-10 rounded-full font-black text-sm
                     ${isCeramica  ? 'bg-[#FFB81C] text-[#1B2852]'
-                      : isChampion ? 'bg-[#FFD700] text-black'
+                      : isChampion ? 'bg-[#FFD700] text-black ring-2 ring-[#FFD700]/40'
                       : isCafCL   ? 'bg-green-500 text-white'
                       : isCafConf ? 'bg-blue-400 text-white'
                       : isRelTop  ? 'bg-[#FFB81C] text-[#1B2852]'
@@ -237,9 +237,13 @@ export default function Standings() {
                 className="bg-gray-900 border border-white/10 rounded-2xl overflow-hidden shadow-2xl">
                 <StandingsTable teams={champTeams} isArabic={isArabic} isRelGroup={false} />
                 <div className="p-4 bg-black/20 border-t border-white/10 flex flex-wrap gap-5 text-xs text-white/50">
-                  <span className="flex items-center gap-1.5"><span className="w-2.5 h-5 bg-[#FFD700] rounded-full inline-block" />{isArabic ? 'بطل الدوري' : 'League Champion'}</span>
-                  <span className="flex items-center gap-1.5"><span className="w-2.5 h-5 bg-green-500 rounded-full inline-block" />{isArabic ? 'دوري أبطال أفريقيا' : 'CAF Champions League'}</span>
-                  <span className="flex items-center gap-1.5"><span className="w-2.5 h-5 bg-blue-400 rounded-full inline-block" />{isArabic ? 'كأس الكونفدرالية' : 'CAF Confederation Cup'}</span>
+                  <span className="flex items-center gap-1.5">
+                    <span className="w-2.5 h-5 bg-[#FFD700] rounded-full inline-block" />
+                    <Crown className="w-3 h-3 text-[#FFD700]" />
+                    {isArabic ? 'بطل الدوري + دوري أبطال أفريقيا (المركز 1)' : 'League Champion + CAF CL (1st)'}
+                  </span>
+                  <span className="flex items-center gap-1.5"><span className="w-2.5 h-5 bg-green-500 rounded-full inline-block" />{isArabic ? 'دوري أبطال أفريقيا (المركز 2)' : 'CAF Champions League (2nd)'}</span>
+                  <span className="flex items-center gap-1.5"><span className="w-2.5 h-5 bg-blue-400 rounded-full inline-block" />{isArabic ? 'كأس الكونفدرالية (المركز 3)' : 'CAF Confederation Cup (3rd)'}</span>
                   <span className="flex items-center gap-1.5"><span className="w-3 h-3 bg-[#FFB81C]/20 rounded border border-[#FFB81C]/40 inline-block" />Ceramica Cleopatra</span>
                 </div>
               </motion.div>
