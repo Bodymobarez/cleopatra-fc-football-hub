@@ -540,14 +540,14 @@ syncRouter.post('/squad', async (_req, res) => {
 
     const posMap = { Goalkeepers:'Goalkeeper', Defenders:'Defender', Midfielders:'Midfielder', Forwards:'Forward' };
 
-    // Fetch real photos for each player (rate limit: 3 RPS → sleep 400ms between calls)
+    // Fetch player details + stats for every player (rate limit: 3 RPS → sleep 400ms)
     const sleep = (ms) => new Promise(r => setTimeout(r, ms));
     const playerDetails = {};
     for (const p of allPlayers) {
       try {
         const detail = await flashscore(`/api/flashscore/player/${p.slug}/${p.id}`);
-        if (detail.photo) playerDetails[p.id] = detail;
-        await sleep(400); // respect 3 RPS rate limit
+        playerDetails[p.id] = detail;
+        await sleep(400);
       } catch (_) {}
     }
 
@@ -558,12 +558,26 @@ syncRouter.post('/squad', async (_req, res) => {
       const photo = detail.photo ||
         `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&size=400&background=1B2852&color=FFB81C&bold=true`;
 
+      // Extract current-season stats from careers
+      const seasonEntry = (detail.careers?.league || []).find(c => c.season === SEASON && c.teamId === CERAMICA_ID)
+        || (detail.careers?.league || [])[0]
+        || null;
+      const sv = (key) => (seasonEntry?.stats || []).find(s => s.name === key)?.value ?? 0;
+
       const stats = {
-        appearances: 0, goals: 0, assists: 0, yellow_cards: 0, red_cards: 0,
-        dob: detail.dob || null,
-        market_value: detail.marketValue || null,
+        appearances:      sv('Matches Played'),
+        goals:            sv('Goals'),
+        assists:          sv('Assists'),
+        yellow_cards:     sv('Yellow Cards'),
+        red_cards:        sv('Red Cards'),
+        rating:           sv('Rating') || null,
+        save_percentage:  sv('Save Percentage') || null,
+        clean_sheets:     sv('Shutouts') || null,
+        minutes_played:   sv('Minutes Played') || null,
+        dob:              detail.dob || null,
+        market_value:     detail.marketValue || null,
         contract_expires: detail.contractExpires || null,
-        flashscore_id: p.id,
+        flashscore_id:    p.id,
       };
 
       await query(
@@ -575,7 +589,7 @@ syncRouter.post('/squad', async (_req, res) => {
           posMap[p.position] || p.position || 'Midfielder',
           p.countryName || 'Egyptian',
           photo,
-          'available',
+          detail.playerStatus === 'INJURED' ? 'injured' : 'available',
           false,
           JSON.stringify(stats),
         ],
@@ -591,6 +605,78 @@ syncRouter.post('/squad', async (_req, res) => {
     });
   } catch (err) {
     console.error('sync/squad', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── Player Stats only (no re-insert, just UPDATE stats) ─────────────────────
+syncRouter.post('/player-stats', async (_req, res) => {
+  try {
+    const { query } = getSQL();
+    const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+
+    // Fetch all players that have a flashscore_id stored in stats JSONB
+    const { rows } = await query(
+      `SELECT id, name, stats FROM players WHERE stats->>'flashscore_id' IS NOT NULL`,
+      []
+    );
+
+    if (rows.length === 0) {
+      return res.json({ synced: true, updated: 0, message: 'No players with flashscore_id. Run Squad sync first.' });
+    }
+
+    let updated = 0;
+    for (const row of rows) {
+      const existingStats = row.stats || {};
+      const fsId = existingStats.flashscore_id;
+      if (!fsId) continue;
+
+      try {
+        // Try to find slug from existing stats or generate from name
+        const slug = existingStats.flashscore_slug
+          || row.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+        const detail = await flashscore(`/api/flashscore/player/${slug}/${fsId}`);
+
+        // Find current season entry
+        const seasonEntry = (detail.careers?.league || []).find(c => c.season === SEASON && c.teamId === CERAMICA_ID)
+          || (detail.careers?.league || []).find(c => c.teamId === CERAMICA_ID)
+          || (detail.careers?.league || [])[0]
+          || null;
+        const sv = (key) => (seasonEntry?.stats || []).find(s => s.name === key)?.value ?? 0;
+
+        const newStats = {
+          ...existingStats,
+          appearances:     sv('Matches Played'),
+          goals:           sv('Goals'),
+          assists:         sv('Assists'),
+          yellow_cards:    sv('Yellow Cards'),
+          red_cards:       sv('Red Cards'),
+          rating:          sv('Rating') || null,
+          save_percentage: sv('Save Percentage') || null,
+          clean_sheets:    sv('Shutouts') || null,
+          minutes_played:  sv('Minutes Played') || null,
+          dob:             detail.dob || existingStats.dob || null,
+          market_value:    detail.marketValue || existingStats.market_value || null,
+          contract_expires: detail.contractExpires || existingStats.contract_expires || null,
+          stats_season:    seasonEntry?.season || SEASON,
+          stats_updated_at: new Date().toISOString(),
+        };
+
+        const status = detail.playerStatus === 'INJURED' ? 'injured' : 'available';
+        await query(
+          `UPDATE players SET stats = $1, status = $2 WHERE id = $3`,
+          [JSON.stringify(newStats), status, row.id]
+        );
+        updated++;
+        await sleep(400);
+      } catch (err) {
+        console.warn(`Skipping player ${row.name}:`, err.message);
+      }
+    }
+
+    res.json({ synced: true, updated, total: rows.length, season: SEASON, updatedAt: new Date().toISOString() });
+  } catch (err) {
+    console.error('sync/player-stats', err);
     res.status(500).json({ error: err.message });
   }
 });

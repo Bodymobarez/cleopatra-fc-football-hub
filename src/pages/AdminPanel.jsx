@@ -557,12 +557,13 @@ function SyncTab() {
   };
 
   const syncs = [
-    { id:'standings',  label:'جدول الترتيب',        sub:'Egyptian Premier League 2025-26',      icon:Trophy,     color:'from-[#FFB81C] to-yellow-600',   fn: ceramicaCleopatra.admin.syncStandings },
-    { id:'squad',      label:'قائمة اللاعبين',      sub:'مع صور حقيقية من Flashscore',           icon:Users,      color:'from-[#1B2852] to-blue-900',     fn: ceramicaCleopatra.admin.syncSquad },
-    { id:'matches',    label:'النتائج الكاملة',     sub:'كل نتائج الدوري 2025-26',               icon:Calendar,   color:'from-green-600 to-emerald-700',  fn: ceramicaCleopatra.admin.syncMatches },
-    { id:'fixtures',   label:'المباريات القادمة',   sub:'مع الملاعب والمعاينات + Preview News',  icon:Zap,        color:'from-orange-500 to-orange-700',  fn: ceramicaCleopatra.admin.syncFixtures },
-    { id:'news',       label:'أخبار المباريات',     sub:'تقارير حقيقية من مباريات سيراميكا',     icon:Newspaper,  color:'from-purple-600 to-purple-800',  fn: ceramicaCleopatra.admin.syncNews },
-    { id:'topscorers', label:'ترتيب الدوري',        sub:'مقال عن الترتيب الحالي',                icon:TrendingUp, color:'from-[#C8102E] to-red-700',      fn: ceramicaCleopatra.admin.syncTopScorers },
+    { id:'standings',    label:'جدول الترتيب',          sub:'Egyptian Premier League 2025-26',          icon:Trophy,     color:'from-[#FFB81C] to-yellow-600',   fn: ceramicaCleopatra.admin.syncStandings },
+    { id:'squad',        label:'قائمة اللاعبين',        sub:'مع صور وإحصائيات حقيقية من Flashscore',    icon:Users,      color:'from-[#1B2852] to-blue-900',     fn: ceramicaCleopatra.admin.syncSquad },
+    { id:'player-stats', label:'إحصائيات اللاعبين',    sub:'تحديث إحصائيات الموسم لكل لاعب',           icon:TrendingUp, color:'from-teal-600 to-teal-800',      fn: ceramicaCleopatra.admin.syncPlayerStats },
+    { id:'matches',      label:'النتائج الكاملة',       sub:'كل نتائج الدوري 2025-26',                  icon:Calendar,   color:'from-green-600 to-emerald-700',  fn: ceramicaCleopatra.admin.syncMatches },
+    { id:'fixtures',     label:'المباريات القادمة',     sub:'مع الملاعب والمعاينات + Preview News',     icon:Zap,        color:'from-orange-500 to-orange-700',  fn: ceramicaCleopatra.admin.syncFixtures },
+    { id:'news',         label:'أخبار المباريات',       sub:'تقارير حقيقية من مباريات سيراميكا',        icon:Newspaper,  color:'from-purple-600 to-purple-800',  fn: ceramicaCleopatra.admin.syncNews },
+    { id:'topscorers',   label:'ترتيب الدوري',          sub:'مقال عن الترتيب الحالي',                   icon:TrendingUp, color:'from-[#C8102E] to-red-700',      fn: ceramicaCleopatra.admin.syncTopScorers },
   ];
 
   return (

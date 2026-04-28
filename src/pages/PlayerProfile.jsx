@@ -73,8 +73,9 @@ export default function PlayerProfile() {
     ? positionAr[player.position] || player.position_detail || player.position
     : player.position_detail || player.position;
   const gradientClass = positionColors[player.position] || 'from-gray-500 to-gray-700';
+  const isGK = player.position === 'Goalkeeper';
 
-  const statItems = [
+  const baseStatItems = [
     {
       icon: Calendar,
       value: stats.appearances ?? 0,
@@ -82,21 +83,9 @@ export default function PlayerProfile() {
       color: 'text-white',
     },
     {
-      icon: Target,
-      value: stats.goals ?? 0,
-      label: isArabic ? 'أهداف' : 'Goals',
-      color: 'text-[#FFB81C]',
-    },
-    {
-      icon: TrendingUp,
-      value: stats.assists ?? 0,
-      label: isArabic ? 'تمريرات حاسمة' : 'Assists',
-      color: 'text-green-400',
-    },
-    {
       icon: Award,
       value: stats.yellow_cards ?? 0,
-      label: isArabic ? 'بطاقات صفراء' : 'Yellow Cards',
+      label: isArabic ? 'بطاقات صفراء' : 'Yellow',
       color: 'text-yellow-400',
     },
     {
@@ -105,13 +94,25 @@ export default function PlayerProfile() {
       label: isArabic ? 'بطاقات حمراء' : 'Red Cards',
       color: 'text-red-500',
     },
-    {
-      icon: Hash,
-      value: stats.minutes_played ?? 0,
-      label: isArabic ? 'دقائق' : 'Minutes',
-      color: 'text-blue-400',
-    },
-  ];
+    stats.minutes_played
+      ? { icon: Hash, value: stats.minutes_played, label: isArabic ? 'دقائق' : 'Minutes', color: 'text-blue-400' }
+      : null,
+    stats.rating
+      ? { icon: TrendingUp, value: Number(stats.rating).toFixed(1), label: isArabic ? 'التقييم' : 'Rating', color: 'text-[#FFB81C]' }
+      : null,
+  ].filter(Boolean);
+
+  const positionStatItems = isGK
+    ? [
+        { icon: Shield,    value: stats.clean_sheets ?? 0,                   label: isArabic ? 'مرمى نظيف' : 'Clean Sheets', color: 'text-teal-400' },
+        { icon: TrendingUp, value: stats.save_percentage != null ? `${Number(stats.save_percentage).toFixed(1)}%` : '—', label: isArabic ? 'نسبة التصدي' : 'Save %', color: 'text-green-400' },
+      ]
+    : [
+        { icon: Target,    value: stats.goals ?? 0,   label: isArabic ? 'أهداف' : 'Goals',    color: 'text-[#FFB81C]' },
+        { icon: TrendingUp, value: stats.assists ?? 0, label: isArabic ? 'تمريرات' : 'Assists', color: 'text-green-400' },
+      ];
+
+  const statItems = [...positionStatItems, ...baseStatItems];
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -321,7 +322,10 @@ export default function PlayerProfile() {
                   { label: isArabic ? 'تاريخ الميلاد' : 'Date of Birth', value: player.date_of_birth ? new Date(player.date_of_birth).toLocaleDateString(isArabic ? 'ar-EG' : 'en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : '—' },
                   { label: isArabic ? 'الطول' : 'Height',               value: player.height || '—' },
                   { label: isArabic ? 'الوزن' : 'Weight',               value: player.weight || '—' },
-                  { label: isArabic ? 'القدم المفضلة' : 'Preferred Foot', value: player.preferred_foot ? (isArabic ? (player.preferred_foot === 'Right' ? 'يمين' : 'يسار') : player.preferred_foot) : '—' },
+                  { label: isArabic ? 'القدم المفضلة' : 'Preferred Foot', value: player.preferred_foot ? (isArabic ? (player.preferred_foot === 'Right' ? 'يمين' : 'يسار') : player.preferred_foot) : null },
+                  { label: isArabic ? 'القيمة السوقية' : 'Market Value',   value: stats.market_value || null },
+                  { label: isArabic ? 'انتهاء العقد' : 'Contract',          value: stats.contract_expires ? stats.contract_expires.replace('Contract expires: ', '') : null },
+                  { label: isArabic ? 'موسم الإحصائيات' : 'Stats Season',   value: stats.stats_season || null },
                 ].map(({ label, value }) => value && value !== '—' ? (
                   <div key={label} className="flex items-center justify-between py-2 border-b border-gray-50 last:border-0">
                     <dt className="text-gray-500 text-sm">{label}</dt>
