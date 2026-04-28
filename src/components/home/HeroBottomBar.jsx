@@ -4,8 +4,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { createPageUrl, formatDate } from '@/utils';
 import { useLanguage } from '@/components/LanguageContext';
 import {
-  ChevronRight, ChevronLeft, Calendar, MapPin, Clock,
-  Trophy, Newspaper, TrendingUp, Star
+  ChevronRight, Calendar, MapPin, Clock,
+  Trophy, Newspaper, TrendingUp, Star, Zap
 } from 'lucide-react';
 
 /* ── Countdown hook ──────────────────────────────────────────── */
@@ -54,124 +54,107 @@ function FlipUnit({ value, label }) {
   );
 }
 
-/* ── Sliding News+Standings panel ───────────────────────────── */
-const SLIDE_INTERVAL = 4500;
+/* ── Continuous Marquee Ticker ───────────────────────────────── */
+function TickerItem({ item, isArabic }) {
+  const ceramicaNames = ['ceramica', 'cleopatra', 'سيراميكا', 'كليوباترا'];
+  const isCeramica = item.type === 'standing' &&
+    ceramicaNames.some(k => String(item.data.name || '').toLowerCase().includes(k));
 
-function NewsStandingsSlider({ news, standings, isArabic }) {
+  if (item.type === 'news') {
+    return (
+      <Link
+        to={createPageUrl('NewsDetail') + `?id=${item.data.id}`}
+        className="flex items-center gap-2.5 group shrink-0 px-5"
+      >
+        <div className="shrink-0 w-5 h-5 rounded bg-[#FFB81C]/30 flex items-center justify-center">
+          <Newspaper className="w-3 h-3 text-[#FFB81C]" />
+        </div>
+        <span className="text-[#FFB81C] text-xs font-black uppercase tracking-widest shrink-0">
+          {isArabic ? 'خبر' : 'NEWS'}
+        </span>
+        <span className="w-px h-3 bg-white/20 shrink-0" />
+        <span className="text-white text-sm whitespace-nowrap group-hover:text-[#FFB81C] transition-colors">
+          {item.data.title}
+        </span>
+      </Link>
+    );
+  }
+
+  return (
+    <Link
+      to={createPageUrl('Standings')}
+      className="flex items-center gap-2.5 group shrink-0 px-5"
+    >
+      <div className="shrink-0 w-5 h-5 rounded bg-yellow-500/20 flex items-center justify-center">
+        <Trophy className="w-3 h-3 text-[#FFB81C]" />
+      </div>
+      <span className={`text-xs font-black uppercase tracking-widest shrink-0 ${isCeramica ? 'text-[#FFB81C]' : 'text-white/50'}`}>
+        #{item.data.rank}
+      </span>
+      {item.data.logo && (
+        <img
+          src={item.data.logo}
+          alt=""
+          className="w-5 h-5 object-contain shrink-0"
+          onError={e => { e.target.style.display = 'none'; }}
+        />
+      )}
+      <span className={`text-sm whitespace-nowrap font-medium ${isCeramica ? 'text-[#FFB81C] font-black' : 'text-white group-hover:text-[#FFB81C]'} transition-colors`}>
+        {isCeramica && '★ '}{item.data.name}
+      </span>
+      <span className="w-px h-3 bg-white/20 shrink-0" />
+      <span className="text-white/40 text-xs shrink-0 whitespace-nowrap">
+        {item.data.played ?? '—'} {isArabic ? 'ل' : 'P'}
+      </span>
+      <span className="text-[#FFB81C] font-black text-sm shrink-0 whitespace-nowrap">
+        {item.data.points ?? '—'} {isArabic ? 'ن' : 'pts'}
+      </span>
+    </Link>
+  );
+}
+
+function NewsStandingsTicker({ news, standings, isArabic }) {
   const items = buildSliderItems(news, standings, isArabic);
-  const [idx, setIdx] = useState(0);
-  const timerRef = useRef(null);
-
-  const restart = () => {
-    clearInterval(timerRef.current);
-    timerRef.current = setInterval(() => setIdx(i => (i + 1) % items.length), SLIDE_INTERVAL);
-  };
+  const trackRef = useRef(null);
+  const [duration, setDuration] = useState(40);
 
   useEffect(() => {
-    if (!items.length) return;
-    restart();
-    return () => clearInterval(timerRef.current);
+    if (trackRef.current) {
+      // Speed: ~80px per second
+      const width = trackRef.current.scrollWidth / 2;
+      setDuration(Math.max(20, width / 80));
+    }
   }, [items.length]);
-
-  const go = (dir) => {
-    setIdx(i => (i + dir + items.length) % items.length);
-    restart();
-  };
 
   if (!items.length) return null;
 
-  const item = items[idx];
+  // Duplicate items for seamless loop
+  const doubled = [...items, ...items];
 
   return (
-    <div className="flex-1 min-w-0 flex items-center gap-3 relative">
-      {/* Prev */}
-      <button
-        onClick={() => go(-1)}
-        className="shrink-0 w-7 h-7 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors"
+    <div className="flex-1 min-w-0 overflow-hidden relative">
+      {/* Left fade */}
+      <div className="absolute left-0 top-0 bottom-0 w-12 bg-gradient-to-r from-[#0a1628] to-transparent z-10 pointer-events-none" />
+      {/* Right fade */}
+      <div className="absolute right-0 top-0 bottom-0 w-12 bg-gradient-to-l from-[#0a1628] to-transparent z-10 pointer-events-none" />
+
+      <motion.div
+        ref={trackRef}
+        className="flex items-center"
+        animate={{ x: [0, -(trackRef.current?.scrollWidth ?? 2000) / 2] }}
+        transition={{
+          x: { duration, ease: 'linear', repeat: Infinity, repeatType: 'loop' },
+        }}
+        style={{ willChange: 'transform' }}
       >
-        <ChevronLeft className="w-4 h-4 text-white/70" />
-      </button>
-
-      {/* Card */}
-      <div className="flex-1 min-w-0 overflow-hidden">
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={idx}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            transition={{ duration: 0.35 }}
-          >
-            {item.type === 'news' ? (
-              <Link
-                to={createPageUrl('NewsDetail') + `?id=${item.data.id}`}
-                className="flex items-center gap-3 group"
-              >
-                <div className="shrink-0 w-9 h-9 rounded-lg bg-[#FFB81C]/20 flex items-center justify-center">
-                  <Newspaper className="w-4 h-4 text-[#FFB81C]" />
-                </div>
-                <div className="min-w-0">
-                  <span className="text-[10px] text-[#FFB81C] font-bold uppercase tracking-wider block">
-                    {isArabic ? 'خبر' : 'News'}
-                  </span>
-                  <p className="text-white text-sm font-medium truncate group-hover:text-[#FFB81C] transition-colors">
-                    {item.data.title}
-                  </p>
-                </div>
-              </Link>
-            ) : (
-              <Link to={createPageUrl('Standings')} className="flex items-center gap-3 group">
-                <div className="shrink-0 w-9 h-9 rounded-lg bg-yellow-500/20 flex items-center justify-center">
-                  <Trophy className="w-4 h-4 text-[#FFB81C]" />
-                </div>
-                <div className="flex items-center gap-3 min-w-0 flex-1">
-                  <span className="text-white/50 text-xs font-bold w-5 text-center">{item.data.rank}</span>
-                  {item.data.logo && (
-                    <img
-                      src={item.data.logo}
-                      alt=""
-                      className="w-6 h-6 object-contain"
-                      onError={e => { e.target.style.display = 'none'; }}
-                    />
-                  )}
-                  <div className="min-w-0 flex-1">
-                    <span className="text-[10px] text-[#FFB81C] font-bold uppercase tracking-wider block">
-                      {isArabic ? 'الترتيب' : 'Standings'}
-                    </span>
-                    <p className={`text-sm font-medium truncate transition-colors ${item.data.isCeramica ? 'text-[#FFB81C]' : 'text-white group-hover:text-[#FFB81C]'}`}>
-                      {item.data.isCeramica && <Star className="w-3 h-3 inline mr-1 text-[#FFB81C]" />}
-                      {item.data.name}
-                    </p>
-                  </div>
-                  <div className="shrink-0 flex gap-3 text-xs">
-                    <span className="text-white/60">{isArabic ? 'ل' : 'P'} <span className="text-white font-bold">{item.data.played}</span></span>
-                    <span className="text-[#FFB81C] font-black">{item.data.points} {isArabic ? 'ن' : 'pts'}</span>
-                  </div>
-                </div>
-              </Link>
-            )}
-          </motion.div>
-        </AnimatePresence>
-      </div>
-
-      {/* Next */}
-      <button
-        onClick={() => go(1)}
-        className="shrink-0 w-7 h-7 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors"
-      >
-        <ChevronRight className="w-4 h-4 text-white/70" />
-      </button>
-
-      {/* Dot indicators */}
-      <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 flex gap-1">
-        {items.map((_, i) => (
-          <button
-            key={i}
-            onClick={() => { setIdx(i); restart(); }}
-            className={`w-1 h-1 rounded-full transition-all ${i === idx ? 'bg-[#FFB81C] w-3' : 'bg-white/20'}`}
-          />
+        {doubled.map((item, i) => (
+          <React.Fragment key={i}>
+            <TickerItem item={item} isArabic={isArabic} />
+            {/* Yellow diamond separator */}
+            <span className="text-[#FFB81C] text-xs shrink-0 opacity-60">◆</span>
+          </React.Fragment>
         ))}
-      </div>
+      </motion.div>
     </div>
   );
 }
@@ -360,26 +343,27 @@ export default function HeroBottomBar({ latestMatch, nextMatch, news, standings 
             <div className="hidden lg:block w-px bg-white/10 self-stretch" />
           )}
 
-          {/* ── News + Standings Slider ─────────────────────── */}
+          {/* ── News + Standings Ticker ────────────────────── */}
           {(news.length > 0 || standings.length > 0) && (
             <motion.div
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.3 }}
-              className="flex-1 min-w-0 flex items-center bg-white/5 border border-white/10 rounded-2xl px-5 py-4"
+              className="flex-1 min-w-0 overflow-hidden rounded-2xl border border-white/10"
             >
-              {/* Label */}
-              <div className="shrink-0 mr-4 hidden sm:flex flex-col items-center gap-1">
-                <div className="w-8 h-8 rounded-lg bg-[#FFB81C]/20 flex items-center justify-center">
-                  <TrendingUp className="w-4 h-4 text-[#FFB81C]" />
+              {/* Yellow label bar */}
+              <div className="flex items-center">
+                <div className="shrink-0 flex items-center gap-2 bg-[#FFB81C] px-4 h-full py-3.5 rounded-l-2xl">
+                  <Zap className="w-4 h-4 text-[#0a1628]" />
+                  <span className="text-[#0a1628] text-xs font-black uppercase tracking-widest whitespace-nowrap">
+                    {isArabic ? 'أخبار وترتيب' : 'News & Standings'}
+                  </span>
                 </div>
-                <span className="text-[9px] text-white/30 uppercase tracking-widest text-center leading-tight">
-                  {isArabic ? 'أخبار\nوترتيب' : 'News &\nStandings'}
-                </span>
+                {/* Ticker track */}
+                <div className="flex-1 min-w-0 bg-[#0a1628]/60 py-3.5">
+                  <NewsStandingsTicker news={news} standings={standings} isArabic={isArabic} />
+                </div>
               </div>
-
-              {/* Slider */}
-              <NewsStandingsSlider news={news} standings={standings} isArabic={isArabic} />
             </motion.div>
           )}
 
