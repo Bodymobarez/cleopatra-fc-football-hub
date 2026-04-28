@@ -10,8 +10,8 @@ app.use(express.json());
 // ─── Constants ────────────────────────────────────────────────────────────────
 const LEAGUE_ID      = 233;   // Egyptian Premier League
 const TEAM_ID        = 14651; // Ceramica Cleopatra FC
-const SEASON         = 2025;  // 2025-26 season (current)
-const SEASON_FALLBACK = 2024; // fallback if 2025 not available on plan
+const SEASON         = 2024;  // 2024-25 (latest available on free plan)
+const SEASON_FALLBACK = 2024;
 
 // ─── DB helper ────────────────────────────────────────────────────────────────
 const getSQL = () => {
