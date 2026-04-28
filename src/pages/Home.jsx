@@ -5,6 +5,7 @@ import { ensureArray } from '@/utils';
 import { useLanguage } from '@/components/LanguageContext';
 
 import HeroSection from '@/components/home/HeroSection';
+import HeroBottomBar from '@/components/home/HeroBottomBar';
 import NewsTicker from '@/components/home/NewsTicker';
 import LiveScores from '@/components/home/LiveScores';
 import QuickLinks from '@/components/home/QuickLinks';
@@ -31,6 +32,18 @@ export default function Home() {
     select: ensureArray,
   });
 
+  const { data: standings = [] } = useQuery({
+    queryKey: ['standings'],
+    queryFn: () => ceramicaCleopatra.entities.Standing.list('-created_date', 1),
+    select: (d) => {
+      const arr = ensureArray(d);
+      const row = arr[0];
+      if (!row) return [];
+      const teams = Array.isArray(row.teams) ? row.teams : (typeof row.teams === 'string' ? JSON.parse(row.teams) : []);
+      return Array.isArray(teams) ? teams.slice(0, 10) : [];
+    },
+  });
+
   // Get Ceramica matches
   const ceramicaMatches = matches.filter(m => m.is_ceramica_match);
   const latestMatch = ceramicaMatches.find(m => m.status === 'finished');
@@ -44,6 +57,9 @@ export default function Home() {
     <div className="min-h-screen">
       {/* Hero Section */}
       <HeroSection latestMatch={latestMatch} nextMatch={nextMatch} />
+
+      {/* Hero Bottom Bar — last result + next match countdown + news/standings slider */}
+      <HeroBottomBar latestMatch={latestMatch} nextMatch={nextMatch} news={news} standings={standings} />
 
       {/* Breaking News Ticker */}
       <NewsTicker news={news} />
