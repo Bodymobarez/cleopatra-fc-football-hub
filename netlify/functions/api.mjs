@@ -942,7 +942,7 @@ The match was played at ${venue} in Round ${round.replace('Round ', '')} of the 
     try {
       await query(`DELETE FROM news WHERE category = 'egyptian_league'`);
       const allMatches = await query(
-        `SELECT * FROM matches WHERE status = 'finished' AND competition ILIKE '%Premier%' ORDER BY match_date DESC LIMIT 30`
+        `SELECT * FROM matches WHERE status = 'finished' AND competition ILIKE '%Premier%' ORDER BY date DESC LIMIT 30`
       );
       const byRound = {};
       for (const m of (Array.isArray(allMatches) ? allMatches : [])) {
@@ -962,7 +962,7 @@ The match was played at ${venue} in Round ${round.replace('Round ', '')} of the 
           `${m.home_team} ${m.home_score ?? '?'} — ${m.away_score ?? '?'} ${m.away_team}`
         ).join('\n');
         const latestDate = matches.reduce((d, m) => {
-          const md = new Date(m.match_date || 0);
+          const md = new Date(m.date || 0);
           return md > d ? md : d;
         }, new Date(0));
 
@@ -982,42 +982,71 @@ The match was played at ${venue} in Round ${round.replace('Round ', '')} of the 
       }
     } catch (e) { console.error('sync/news egyptian_league:', e.message); }
 
-    // ── Injuries: from players table with status = 'injured' ─────────────────
+    // ── Injuries: from players table (always create status update) ──────────
     try {
       await query(`DELETE FROM news WHERE category = 'injuries'`);
       const injuredPlayers = await query(
         `SELECT * FROM players WHERE status = 'injured' ORDER BY updated_at DESC`
       );
       const injured = Array.isArray(injuredPlayers) ? injuredPlayers : [];
+
+      // Always generate a squad fitness report
+      const allPlayers = await query(`SELECT name, position, status FROM players ORDER BY name`);
+      const allP = Array.isArray(allPlayers) ? allPlayers : [];
+      const availableCount = allP.filter(p => p.status === 'available').length;
+      const suspendedPlayers = allP.filter(p => p.status === 'suspended');
+      const injuryImgs = [
+        'https://images.unsplash.com/photo-1612872087720-bb876e2e67d1?w=800',
+        'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=800',
+        'https://images.unsplash.com/photo-1541534741688-6078c6bfb5c5?w=800',
+      ];
+
       if (injured.length > 0) {
         const names = injured.map(p => `• ${p.name} (${p.position || 'لاعب'})`).join('\n');
         const title   = `تقرير إصابات سيراميكا كليوباترا — موسم ${SEASON}`;
         const excerpt = `تحديث بأحدث إصابات لاعبي سيراميكا كليوباترا. ${injured.length} لاعب خارج عن الخدمة حالياً.`;
         const content = `تقرير الإصابات — سيراميكا كليوباترا\n\nاللاعبون الغائبون حالياً بسبب الإصابة:\n\n${names}\n\nيتابع الجهاز الطبي حالة اللاعبين بشكل يومي ويتوقع عودة بعضهم قريباً.`;
-
         await query(
-          `INSERT INTO news (title,excerpt,content,category,is_club_news,is_featured,is_breaking,status,featured_image,published_at,tags,views)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
-          [title, excerpt, content, 'injuries', true, false, true, 'published',
-           'https://images.unsplash.com/photo-1612872087720-bb876e2e67d1?w=800',
-           new Date().toISOString(), ['إصابات', 'سيراميكا', SEASON], 0]
+          `INSERT INTO news (title,excerpt,content,category,is_club_news,is_featured,is_breaking,status,featured_image,published_at,tags,views) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
+          [title, excerpt, content, 'injuries', true, true, true, 'published', injuryImgs[0], new Date().toISOString(), ['إصابات', 'سيراميكا', SEASON], 0]
         );
         articlesCreated.push(title);
-
-        // Individual injury updates
         for (const p of injured.slice(0, 5)) {
           const t2 = `إصابة ${p.name} — ${p.position || 'لاعب'} سيراميكا كليوباترا`;
           const e2 = `غياب ${p.name} عن تدريبات وبطولات الفريق بسبب الإصابة.`;
-          const c2 = `تقرير إصابة\n\nأُعلن عن إصابة ${p.name}، ${p.position || 'لاعب'} سيراميكا كليوباترا. يتابع الجهاز الطبي حالة اللاعب وسيتم الإعلان عن موعد العودة لاحقاً.`;
+          const c2 = `تقرير إصابة\n\n${p.name}، ${p.position || 'لاعب'} سيراميكا كليوباترا بعيد عن الملاعب بسبب الإصابة. يتابع الجهاز الطبي حالة اللاعب.`;
           await query(
-            `INSERT INTO news (title,excerpt,content,category,is_club_news,is_featured,is_breaking,status,featured_image,published_at,tags,views)
-             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
-            [t2, e2, c2, 'injuries', true, false, false, 'published',
-             p.photo || 'https://images.unsplash.com/photo-1612872087720-bb876e2e67d1?w=800',
-             new Date().toISOString(), ['إصابة', p.name, SEASON], 0]
+            `INSERT INTO news (title,excerpt,content,category,is_club_news,is_featured,is_breaking,status,featured_image,published_at,tags,views) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
+            [t2, e2, c2, 'injuries', true, false, false, 'published', p.photo_url || injuryImgs[1], new Date().toISOString(), ['إصابة', p.name, SEASON], 0]
           );
           articlesCreated.push(t2);
         }
+      } else {
+        // No injuries — good news article
+        const title   = `سيراميكا كليوباترا بلا إصابات — المجموعة مكتملة للموسم ${SEASON}`;
+        const excerpt = `أخبار إيجابية من سيراميكا كليوباترا: الفريق يواصل تدريباته بالكامل دون أي إصابات.`;
+        const content = `تقرير اللياقة البدنية\n\nتحتفظ سيراميكا كليوباترا بمجموعة كاملة وخالية من الإصابات في الوقت الحالي.\n\n✅ اللاعبون المتاحون: ${availableCount}\n${suspendedPlayers.length > 0 ? `⚠️ الموقوفون: ${suspendedPlayers.map(p => p.name).join('، ')}` : '✅ لا توجد إيقافات'}\n\nالجهاز الطبي يواصل مراقبة حالة جميع اللاعبين للتأكد من استعدادهم الكامل للمباريات القادمة.`;
+        await query(
+          `INSERT INTO news (title,excerpt,content,category,is_club_news,is_featured,is_breaking,status,featured_image,published_at,tags,views) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
+          [title, excerpt, content, 'injuries', true, true, false, 'published', injuryImgs[2], new Date().toISOString(), ['إصابات', 'لياقة', SEASON], 0]
+        );
+        articlesCreated.push(title);
+      }
+
+      // Suspension/yellow card warning article from standings
+      const atRiskPlayers = await query(
+        `SELECT name, position FROM players WHERE (stats->>'yellow_cards')::int >= 4 ORDER BY (stats->>'yellow_cards')::int DESC NULLS LAST LIMIT 5`
+      ).catch(() => []);
+      const atRisk = Array.isArray(atRiskPlayers) ? atRiskPlayers : [];
+      if (atRisk.length > 0) {
+        const t3 = `تحذير: لاعبو سيراميكا المعرضون للإيقاف بسبب البطاقات الصفراء`;
+        const e3 = `لاعبو سيراميكا كليوباترا المعرضون لخطر الإيقاف في المباريات القادمة.`;
+        const c3 = `تحذير البطاقات الصفراء\n\nاللاعبون المعرضون لخطر الإيقاف:\n\n${atRisk.map(p => `• ${p.name} (${p.position || 'لاعب'})`).join('\n')}\n\nيجب على هؤلاء اللاعبين الحذر في المباريات القادمة لتجنب الحصول على بطاقة صفراء إضافية.`;
+        await query(
+          `INSERT INTO news (title,excerpt,content,category,is_club_news,is_featured,is_breaking,status,featured_image,published_at,tags,views) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
+          [t3, e3, c3, 'injuries', true, false, false, 'published', injuryImgs[0], new Date().toISOString(), ['إيقاف', 'بطاقات', SEASON], 0]
+        );
+        articlesCreated.push(t3);
       }
     } catch (e) { console.error('sync/news injuries:', e.message); }
 
