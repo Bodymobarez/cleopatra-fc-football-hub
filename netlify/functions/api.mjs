@@ -741,6 +741,7 @@ syncRouter.post('/matches', async (_req, res) => {
         home_team_logo:    fsLogo(m.homeLogo),
         away_team_logo:    fsLogo(m.awayLogo),
         round:             m.round || null,
+        api_fixture_id:    m.eventId || null,
       };
     };
 
@@ -759,12 +760,12 @@ syncRouter.post('/matches', async (_req, res) => {
       await query(
         `INSERT INTO matches
            (home_team, away_team, date, status, home_score, away_score,
-            competition, match_type, is_ceramica_match, home_team_logo, away_team_logo, round)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
+            competition, match_type, is_ceramica_match, home_team_logo, away_team_logo, round, api_fixture_id)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`,
         [
           m.home_team, m.away_team, m.date, m.status,
           m.home_score, m.away_score, m.competition, m.match_type,
-          m.is_ceramica_match, m.home_team_logo, m.away_team_logo, m.round,
+          m.is_ceramica_match, m.home_team_logo, m.away_team_logo, m.round, m.api_fixture_id,
         ],
       );
     }
@@ -1094,6 +1095,41 @@ makeCRUD(router, 'media',    ['title','type','url','thumbnail_url','created_date
 makeCRUD(router, 'polls',    ['question','options','total_votes','is_active','created_date'], true);
 makeCRUD(router, 'comments', ['content','author_name','status','news_id','created_date'], true);
 makeCRUD(router, 'standings',['competition','season','teams','created_date'], true);
+
+// ── Match Details + Stats (from Flashscore, by eventId) ─────────────────────
+router.get('/match-details/:eventId', async (req, res) => {
+  try {
+    const { eventId } = req.params;
+    const [details, stats, lineups] = await Promise.all([
+      flashscore(`/api/flashscore/match/${eventId}/details?with_events=true`).catch(() => ({})),
+      flashscore(`/api/flashscore/match/${eventId}/stats`).catch(() => []),
+      flashscore(`/api/flashscore/match/${eventId}/lineups`).catch(() => ({})),
+    ]);
+
+    // Normalise stats array (may be nested by period)
+    const statsArr = Array.isArray(stats)
+      ? stats.find(p => p.period === 'Match')?.stats || stats.flatMap(p => p.stats || p)
+      : [];
+
+    res.json({
+      eventId,
+      homeName:  details.homeName  || '',
+      awayName:  details.awayName  || '',
+      homeLogo:  details.homeLogo  || '',
+      awayLogo:  details.awayLogo  || '',
+      referee:   details.referee   || null,
+      venue:     details.venue     || null,
+      venueCity: details.venueCity || null,
+      capacity:  details.capacity  || null,
+      events:    details.events    || [],
+      stats:     statsArr,
+      lineups:   lineups,
+    });
+  } catch (err) {
+    console.error('match-details', err);
+    res.status(500).json({ error: err.message });
+  }
+});
 
 // ── Ceramica Fixtures: last result + next match (from DB) ───────────────────
 router.get('/ceramica-fixtures', async (_req, res) => {

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { ceramicaCleopatra } from '@/api/ceramicaCleopatraClient';
 import { useQuery } from '@tanstack/react-query';
 import { ensureArray } from '@/utils';
@@ -21,6 +21,31 @@ export default function Matches() {
     queryFn: () => ceramicaCleopatra.entities.Match.list('-date', 100),
     select: ensureArray,
   });
+
+  // Live data from Flashscore — poll every 45s
+  const { data: liveData } = useQuery({
+    queryKey: ['live-scores'],
+    queryFn: () => ceramicaCleopatra.liveScores(),
+    refetchInterval: 45000,
+    staleTime: 30000,
+  });
+
+  // Build a lookup: normalised team pair → live match
+  const liveByTeams = React.useMemo(() => {
+    const map = {};
+    const norm = (s) => String(s || '').toLowerCase().replace(/[^a-z]/g, '');
+    for (const m of (liveData?.matches || [])) {
+      const key = [norm(m.home_team), norm(m.away_team)].sort().join('_');
+      map[key] = m;
+    }
+    return map;
+  }, [liveData]);
+
+  const getLive = (match) => {
+    const norm = (s) => String(s || '').toLowerCase().replace(/[^a-z]/g, '');
+    const key = [norm(match.home_team), norm(match.away_team)].sort().join('_');
+    return liveByTeams[key] || null;
+  };
 
   const filteredMatches = matches.filter(match => {
     const matchDate = new Date(match.date);
@@ -196,7 +221,12 @@ export default function Matches() {
           ) : filteredMatches.length > 0 ? (
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
               {filteredMatches.map((match, index) => (
-                <MatchCard key={match.id} match={match} index={index} />
+                <MatchCard
+                  key={match.id}
+                  match={match}
+                  liveMatch={getLive(match)}
+                  index={index}
+                />
               ))}
             </div>
           ) : (
