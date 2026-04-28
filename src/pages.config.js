@@ -1,4 +1,5 @@
 import Home from './pages/Home';
+import PlayerProfile from './pages/PlayerProfile';
 import Squad from './pages/Squad';
 import Matches from './pages/Matches';
 import News from './pages/News';
@@ -36,6 +37,7 @@ export const PAGES = {
     "Login": Login,
     "Register": Register,
     "Dashboard": Dashboard,
+    "PlayerProfile": PlayerProfile,
 }
 
 export const pagesConfig = {
